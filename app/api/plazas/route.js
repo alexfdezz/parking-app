@@ -1,4 +1,4 @@
-import clientPromise from '@/lib/mongodb';
+import clientPromise from '../../../lib/mongodb';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -18,7 +18,6 @@ export async function POST(request) {
     const db = client.db("gestion_parking");
     const body = await request.json();
     
-    // Guardamos o actualizamos la plaza basándonos en su ID (ej: "A-01")
     const { id_plaza, ...datos } = body;
     
     await db.collection("plazas").updateOne(
