@@ -1,10 +1,14 @@
 import clientPromise from './mongodb';
 import { NextResponse } from 'next/server';
 
+// ESTA ES LA LÍNEA MÁGICA QUE ARREGLA EL ERROR DE BUILD
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const client = await clientPromise;
     const db = client.db("gestion_parking");
+    // Añadimos cache: 'no-store' para que siempre traiga datos frescos
     const plazas = await db.collection("plazas").find({}).toArray();
     return NextResponse.json(plazas);
   } catch (e) {
