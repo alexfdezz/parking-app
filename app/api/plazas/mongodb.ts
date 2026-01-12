@@ -10,7 +10,7 @@ const options = {};
 let client;
 let clientPromise: Promise<MongoClient>;
 
-// Tipado para evitar errores de TypeScript en Vercel
+// ESTO ES LO QUE FALTABA PARA QUE VERCEL NO DE ERROR:
 declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
