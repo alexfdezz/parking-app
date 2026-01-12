@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown, MapPin } from 'lucide-react';
+import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown, MapPin, ArrowRight } from 'lucide-react';
 
 // --- TIPOS ---
 interface PlazaData {
@@ -15,7 +15,7 @@ interface PlazaData {
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN (CORREGIDO EL NOMBRE A "ZONAS") ---
+// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE UNIFICADO: ZONAS) ---
 const ZONAS = {
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
   B: Array.from({ length: 13 }, (_, i) => `B-${String(1 + i).padStart(2, '0')}`),
@@ -23,7 +23,7 @@ const ZONAS = {
   D: Array.from({ length: 15 }, (_, i) => `D-${String(1 + i).padStart(2, '0')}`),
   E: Array.from({ length: 20 }, (_, i) => `E-${String(1 + i).padStart(2, '0')}`),
   F: Array.from({ length: 9 },  (_, i) => `F-${String(9 - i).padStart(2, '0')}`),
-  // NUEVA ZONA M (MOTOS): 6 Plazas
+  // ZONA M (MOTOS): 6 Plazas
   M: Array.from({ length: 6 }, (_, i) => `M-${String(i + 1).padStart(2, '0')}`),
 };
 
@@ -204,7 +204,7 @@ export default function ParkingApp() {
             {/* ZONA A */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
-              {ZONAS.A.map(id => <Plaza key={id} id={id} />)}
+              {ZONAS.A.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
             
@@ -213,11 +213,11 @@ export default function ParkingApp() {
               <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-4 bg-slate-800 border-l border-r border-slate-600 rounded"></div>
               <div className="flex flex-col pr-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">B</div>
-                 {ZONAS.B.map(id => <Plaza key={id} id={id} />)}
+                 {ZONAS.B.map((id: string) => <Plaza key={id} id={id} />)}
               </div>
               <div className="flex flex-col pl-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">C</div>
-                 {ZONAS.C.map(id => <Plaza key={id} id={id} />)}
+                 {ZONAS.C.map((id: string) => <Plaza key={id} id={id} />)}
               </div>
             </div>
             <Pasillo direction="up" />
@@ -225,14 +225,13 @@ export default function ParkingApp() {
             {/* ZONA D */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">D</div>
-              {ZONAS.D.map(id => <Plaza key={id} id={id} />)}
+              {ZONAS.D.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
 
-             {/* ZONA E */}
              <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">E</div>
-              {ZONAS.E.map(id => <Plaza key={id} id={id} />)}
+              {ZONAS.E.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
           </div>
 
@@ -244,21 +243,28 @@ export default function ParkingApp() {
                <div className="text-center font-black text-slate-600 text-xs tracking-widest">MOTOS</div>
                {/* Grid de 2 columnas para que quepan bien */}
                <div className="grid grid-cols-2 gap-1 bg-slate-800/50 p-2 rounded border-2 border-dashed border-yellow-500/20">
-                  {ZONES.M.map(id => <Plaza key={id} id={id} />)}
+                  {ZONAS.M.map((id: string) => <Plaza key={id} id={id} />)}
                </div>
             </div>
 
             <div className="flex flex-col w-full relative z-10">
                <div className="text-left font-black text-slate-600 text-xl mb-2 ml-2 tracking-widest">F</div>
                <div className="flex gap-1">
-                  {ZONAS.F.map(id => <Plaza key={id} id={id} vertical={false} />)}
+                  {ZONAS.F.map((id: string) => <Plaza key={id} id={id} vertical={false} />)}
+               </div>
+               
+               {/* FLECHAS DECORATIVAS ABAJO */}
+               <div className="flex justify-around mt-4 opacity-20 w-full pr-32">
+                   <ArrowRight size={40} strokeWidth={3} className="text-slate-500"/>
+                   <ArrowRight size={40} strokeWidth={3} className="text-slate-500"/>
+                   <ArrowRight size={40} strokeWidth={3} className="text-slate-500"/>
                </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* --- MODAL (ACTUALIZADO CON SEGURIDAD) --- */}
+      {/* --- MODAL --- */}
       {selectedPlaza && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden">
@@ -305,7 +311,7 @@ export default function ParkingApp() {
                      ) : (
                         <>
                            <button onClick={() => setShowDeleteConfirm(true)} className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-500 transition flex justify-center gap-2 items-center"><Trash2 size={18} /> BORRAR</button>
-                           <button onClick={() => setPlazas((prev: any) => ({...prev, [selectedPlaza]: {...prev[selectedPlaza], estado: 'libre'} }))} className="flex-1 bg-slate-800 text-slate-300 border border-slate-700 py-3 rounded-lg font-bold hover:bg-slate-700 transition">EDITAR</button>
+                           <button onClick={() => setPlazas((prev: PlazasState) => ({...prev, [selectedPlaza]: {...prev[selectedPlaza], estado: 'libre'} }))} className="flex-1 bg-slate-800 text-slate-300 border border-slate-700 py-3 rounded-lg font-bold hover:bg-slate-700 transition">EDITAR</button>
                         </>
                      )}
                    </div>
