@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react';
+import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown, MapPin } from 'lucide-react';
 
 // --- TIPOS ---
 interface PlazaData {
@@ -15,8 +15,8 @@ interface PlazaData {
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN ---
-const ZONES = {
+// --- CONFIGURACIÓN DE NUMERACIÓN (CORREGIDO EL NOMBRE A "ZONAS") ---
+const ZONAS = {
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
   B: Array.from({ length: 13 }, (_, i) => `B-${String(1 + i).padStart(2, '0')}`),
   C: Array.from({ length: 15 }, (_, i) => `C-${String(15 - i).padStart(2, '0')}`),
@@ -54,12 +54,14 @@ export default function ParkingApp() {
   // 2. GUARDAR DATOS
   const handleGuardar = async () => {
     if (!selectedPlaza) return;
+    
     const nuevaData: PlazaData = {
       id_plaza: selectedPlaza,
       estado: 'ocupada',
       ...formData,
       fecha_entrada: new Date().toISOString()
     };
+
     setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: nuevaData }));
     setSelectedPlaza(null);
     setFormData({ nombre: '', matricula: '', telefono: '' });
@@ -74,11 +76,13 @@ export default function ParkingApp() {
   // 3. LIBERAR PLAZA
   const confirmarLiberacion = async () => {
     if (!selectedPlaza) return;
+
     const datosVacios: PlazaData = {
       id_plaza: selectedPlaza,
       estado: 'libre',
       nombre: '', matricula: '', telefono: ''
     };
+
     setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: datosVacios }));
     setSelectedPlaza(null);
     setFormData({ nombre: '', matricula: '', telefono: '' });
@@ -106,12 +110,11 @@ export default function ParkingApp() {
     const ocupada = data?.estado === 'ocupada';
     
     const isPlaza27 = id.includes('27'); 
-    const isMoto = id.startsWith('M-'); // Detectamos si es moto
+    const isMoto = id.startsWith('M-'); 
 
     let dimensionsClass = '';
     
     if (isMoto) {
-        // Estilo especial para MOTOS (Cuadradas y pequeñas)
         dimensionsClass = 'h-14 w-16 mb-1 flex-col justify-center items-center';
     } else if (isPlaza27 && !vertical) {
         dimensionsClass = 'h-36 w-10 mb-1 flex-col items-center justify-between self-end'; 
@@ -159,7 +162,6 @@ export default function ParkingApp() {
              `}>
                {data.matricula}
              </span>
-             {/* Icono más pequeño para motos */}
              <Car className={`text-red-400 
                ${isMoto ? '' : (!isPlaza27 && !vertical ? 'rotate-90' : '')}
                ${isPlaza27 ? 'rotate-90' : ''}
@@ -256,7 +258,7 @@ export default function ParkingApp() {
         </div>
       </div>
 
-      {/* --- MODAL --- */}
+      {/* --- MODAL (ACTUALIZADO CON SEGURIDAD) --- */}
       {selectedPlaza && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden">
@@ -303,7 +305,7 @@ export default function ParkingApp() {
                      ) : (
                         <>
                            <button onClick={() => setShowDeleteConfirm(true)} className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-500 transition flex justify-center gap-2 items-center"><Trash2 size={18} /> BORRAR</button>
-                           <button onClick={() => setPlazas((prev: PlazasState) => ({...prev, [selectedPlaza]: {...prev[selectedPlaza], estado: 'libre'} }))} className="flex-1 bg-slate-800 text-slate-300 border border-slate-700 py-3 rounded-lg font-bold hover:bg-slate-700 transition">EDITAR</button>
+                           <button onClick={() => setPlazas((prev: any) => ({...prev, [selectedPlaza]: {...prev[selectedPlaza], estado: 'libre'} }))} className="flex-1 bg-slate-800 text-slate-300 border border-slate-700 py-3 rounded-lg font-bold hover:bg-slate-700 transition">EDITAR</button>
                         </>
                      )}
                    </div>
