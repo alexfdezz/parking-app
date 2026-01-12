@@ -15,7 +15,7 @@ interface PlazaData {
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE CORREGIDO: ZONAS) ---
+// --- CONFIGURACIÓN DE NUMERACIÓN (AQUÍ ESTABA EL ERROR, AHORA ES ZONAS) ---
 const ZONAS = {
   // A: Del 14 al 1 (Bajando)
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
@@ -115,11 +115,10 @@ export default function ParkingApp() {
     const data = plazas[id];
     const ocupada = data?.estado === 'ocupada';
     
-    // Detectamos la plaza 27
     const isPlaza27 = id.includes('27'); 
     const isMoto = id.startsWith('M-'); 
 
-    // LIMPIEZA VISUAL: Quitamos la letra para mostrar solo el número (Ej: "A-14" -> "14")
+    // LIMPIEZA VISUAL
     const numeroVisible = isMoto ? id : id.split('-')[1];
 
     let dimensionsClass = '';
@@ -150,7 +149,7 @@ export default function ParkingApp() {
             : 'border-emerald-500/50 bg-emerald-900/20 hover:bg-emerald-800/40 hover:border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.1)]'} 
         `}
       >
-        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[12px]'}
+        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[14px]'}
           ${isPlaza27 ? 'order-1' : ''} 
           ${!isPlaza27 && !isMoto && !vertical ? '-rotate-90' : ''} 
           ${ocupada ? 'text-slate-500 opacity-50' : 'text-emerald-400 opacity-90'}
@@ -166,7 +165,8 @@ export default function ParkingApp() {
             ${!isPlaza27 && !isMoto && vertical ? 'flex-row-reverse' : ''}
           `}>
              <span className={`font-bold text-white bg-slate-950/80 px-1 border border-slate-700 rounded text-center truncate w-full 
-               ${isMoto ? 'text-[8px] py-0.5' : 'text-[10px] py-1'}
+               ${isMoto ? 'text-[8px] py-0.5' : 'text-[10px]'}
+               ${isMoto ? '' : 'py-0.5'}
                ${!isPlaza27 && !isMoto && !vertical ? '[writing-mode:vertical-rl] py-1' : ''}
                ${isPlaza27 ? '[writing-mode:vertical-rl] py-1' : ''}
              `}>
@@ -210,7 +210,6 @@ export default function ParkingApp() {
             {/* ZONA A */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
-              {/* AQUÍ ESTABA EL ERROR: AHORA USA ZONAS */}
               {ZONAS.A.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
@@ -218,14 +217,10 @@ export default function ParkingApp() {
             {/* ISLA CENTRAL (B y C) */}
             <div className="flex gap-0 relative bg-slate-800/30 p-2 rounded border border-slate-700/50">
               <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-4 bg-slate-800 border-l border-r border-slate-600 rounded"></div>
-              
               <div className="flex flex-col pr-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">B</div>
-                 {/* FILTRO PARA PLAZA 27 */}
-                 {ZONAS.B.filter((id: string) => !id.includes('27')).map((id: string) => <Plaza key={id} id={id} />)}
-                 <Plaza id="B-27" />
+                 {ZONAS.B.map((id: string) => <Plaza key={id} id={id} />)}
               </div>
-
               <div className="flex flex-col pl-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">C</div>
                  {ZONAS.C.map((id: string) => <Plaza key={id} id={id} />)}
