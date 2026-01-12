@@ -15,21 +15,21 @@ interface PlazaData {
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN (AQUÍ ESTABA EL ERROR, AHORA ES ZONAS) ---
-const ZONAS = {
-  // A: Del 14 al 1 (Bajando)
+// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE DEFINITIVO: ZONES) ---
+const ZONES = {
+  // A: 14 arriba -> 01 abajo
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
-  // B: Del 15 al 27 (Subiendo)
+  // B: 15 arriba -> 27 abajo
   B: Array.from({ length: 13 }, (_, i) => `B-${String(15 + i).padStart(2, '0')}`),
-  // C: Del 42 al 28 (Bajando)
+  // C: 42 arriba -> 28 abajo
   C: Array.from({ length: 15 }, (_, i) => `C-${String(42 - i).padStart(2, '0')}`),
-  // D: Del 43 al 57 (Subiendo)
+  // D: 43 arriba -> 57 abajo
   D: Array.from({ length: 15 }, (_, i) => `D-${String(43 + i).padStart(2, '0')}`),
-  // E: Del 58 al 77 (Subiendo)
+  // E: 58 arriba -> 77 abajo
   E: Array.from({ length: 20 }, (_, i) => `E-${String(58 + i).padStart(2, '0')}`),
-  // F: Del 86 al 78 (Bajando/Izquierda)
+  // F: 86 izquierda -> 78 derecha
   F: Array.from({ length: 9 },  (_, i) => `F-${String(86 - i).padStart(2, '0')}`),
-  // ZONA M (MOTOS): M-01 a M-06
+  // M: Motos 01 a 06
   M: Array.from({ length: 6 }, (_, i) => `M-${String(i + 1).padStart(2, '0')}`),
 };
 
@@ -115,21 +115,26 @@ export default function ParkingApp() {
     const data = plazas[id];
     const ocupada = data?.estado === 'ocupada';
     
+    // Detectamos la plaza 27 y Motos
     const isPlaza27 = id.includes('27'); 
     const isMoto = id.startsWith('M-'); 
 
-    // LIMPIEZA VISUAL
-    const numeroVisible = isMoto ? id : id.split('-')[1];
+    // LIMPIEZA VISUAL: Quitamos "A-", "B-", "M-" para mostrar solo el número.
+    const numeroVisible = id.split('-')[1];
 
     let dimensionsClass = '';
     
     if (isMoto) {
-        dimensionsClass = 'h-14 w-16 mb-1 flex-col justify-center items-center';
+        // MOTOS: Cuadradas y pequeñas
+        dimensionsClass = 'h-14 w-14 mb-1 flex-col justify-center items-center';
     } else if (isPlaza27 && !vertical) {
-        dimensionsClass = 'h-36 w-10 mb-1 flex-col items-center justify-between self-end'; 
+        // PLAZA 27: Vertical y especial
+        dimensionsClass = 'h-36 w-10 mt-1 flex-col items-center justify-between self-end'; 
     } else if (vertical) {
+        // Normal Vertical
         dimensionsClass = 'h-10 w-36 mb-1 flex-row items-center justify-between'; 
     } else {
+        // Normal Horizontal (Fila de abajo)
         dimensionsClass = 'h-36 w-10 mr-1 flex-col items-center justify-between';
     }
 
@@ -149,8 +154,11 @@ export default function ParkingApp() {
             : 'border-emerald-500/50 bg-emerald-900/20 hover:bg-emerald-800/40 hover:border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.1)]'} 
         `}
       >
-        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[14px]'}
+        <span className={`font-black text-center whitespace-nowrap
+          ${isMoto ? 'text-[12px]' : 'text-[14px]'}
           ${isPlaza27 ? 'order-1' : ''} 
+          /* ROTACIÓN DEL TEXTO: */
+          /* Si NO es la 27, NO es moto y NO es vertical (es la fila de abajo), rotamos el texto */
           ${!isPlaza27 && !isMoto && !vertical ? '-rotate-90' : ''} 
           ${ocupada ? 'text-slate-500 opacity-50' : 'text-emerald-400 opacity-90'}
         `}>
@@ -210,20 +218,25 @@ export default function ParkingApp() {
             {/* ZONA A */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
-              {ZONAS.A.map((id: string) => <Plaza key={id} id={id} />)}
+              {/* USO CORRECTO: ZONES.A */}
+              {ZONES.A.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
             
             {/* ISLA CENTRAL (B y C) */}
             <div className="flex gap-0 relative bg-slate-800/30 p-2 rounded border border-slate-700/50">
               <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-4 bg-slate-800 border-l border-r border-slate-600 rounded"></div>
+              
               <div className="flex flex-col pr-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">B</div>
-                 {ZONAS.B.map((id: string) => <Plaza key={id} id={id} />)}
+                 {/* FILTRO PLAZA 27 */}
+                 {ZONES.B.filter((id: string) => !id.includes('27')).map((id: string) => <Plaza key={id} id={id} />)}
+                 <Plaza id="B-27" />
               </div>
+
               <div className="flex flex-col pl-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">C</div>
-                 {ZONAS.C.map((id: string) => <Plaza key={id} id={id} />)}
+                 {ZONES.C.map((id: string) => <Plaza key={id} id={id} />)}
               </div>
             </div>
             <Pasillo direction="up" />
@@ -231,13 +244,13 @@ export default function ParkingApp() {
             {/* ZONA D */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">D</div>
-              {ZONAS.D.map((id: string) => <Plaza key={id} id={id} />)}
+              {ZONES.D.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
 
              <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">E</div>
-              {ZONAS.E.map((id: string) => <Plaza key={id} id={id} />)}
+              {ZONES.E.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
           </div>
 
@@ -247,15 +260,16 @@ export default function ParkingApp() {
             {/* ZONA MOTOS */}
             <div className="flex flex-col mr-20 relative z-10 gap-2">
                <div className="text-center font-black text-slate-600 text-xs tracking-widest">MOTOS</div>
-               <div className="grid grid-cols-2 gap-1 bg-slate-800/50 p-2 rounded border-2 border-dashed border-yellow-500/20">
-                  {ZONAS.M.map((id: string) => <Plaza key={id} id={id} />)}
+               {/* Grid de 2 columnas */}
+               <div className="grid grid-cols-2 gap-2 bg-slate-800/50 p-2 rounded border-2 border-dashed border-yellow-500/20">
+                  {ZONES.M.map((id: string) => <Plaza key={id} id={id} />)}
                </div>
             </div>
 
             <div className="flex flex-col w-full relative z-10">
                <div className="text-left font-black text-slate-600 text-xl mb-2 ml-2 tracking-widest">F</div>
                <div className="flex gap-1">
-                  {ZONAS.F.map((id: string) => <Plaza key={id} id={id} vertical={false} />)}
+                  {ZONES.F.map((id: string) => <Plaza key={id} id={id} vertical={false} />)}
                </div>
                
                <div className="flex justify-around mt-4 opacity-20 w-full pr-32">
