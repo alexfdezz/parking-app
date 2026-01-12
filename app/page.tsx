@@ -15,15 +15,21 @@ interface PlazaData {
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE UNIFICADO: ZONAS) ---
+// --- CONFIGURACIÓN DE NUMERACIÓN (RECUPERADA LA ORIGINAL) ---
 const ZONAS = {
+  // A: Del 14 al 1 (Bajando)
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
-  B: Array.from({ length: 13 }, (_, i) => `B-${String(1 + i).padStart(2, '0')}`),
-  C: Array.from({ length: 15 }, (_, i) => `C-${String(15 - i).padStart(2, '0')}`),
-  D: Array.from({ length: 15 }, (_, i) => `D-${String(1 + i).padStart(2, '0')}`),
-  E: Array.from({ length: 20 }, (_, i) => `E-${String(1 + i).padStart(2, '0')}`),
-  F: Array.from({ length: 9 },  (_, i) => `F-${String(9 - i).padStart(2, '0')}`),
-  // ZONA M (MOTOS): 6 Plazas
+  // B: Del 15 al 27 (Subiendo)
+  B: Array.from({ length: 13 }, (_, i) => `B-${String(15 + i).padStart(2, '0')}`),
+  // C: Del 42 al 28 (Bajando)
+  C: Array.from({ length: 15 }, (_, i) => `C-${String(42 - i).padStart(2, '0')}`),
+  // D: Del 43 al 57 (Subiendo)
+  D: Array.from({ length: 15 }, (_, i) => `D-${String(43 + i).padStart(2, '0')}`),
+  // E: Del 58 al 77 (Subiendo)
+  E: Array.from({ length: 20 }, (_, i) => `E-${String(58 + i).padStart(2, '0')}`),
+  // F: Del 86 al 78 (Bajando/Izquierda)
+  F: Array.from({ length: 9 },  (_, i) => `F-${String(86 - i).padStart(2, '0')}`),
+  // ZONA M (MOTOS): M-01 a M-06
   M: Array.from({ length: 6 }, (_, i) => `M-${String(i + 1).padStart(2, '0')}`),
 };
 
@@ -34,7 +40,7 @@ export default function ParkingApp() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
 
-  // 1. CARGAR DATOS
+  // 1. CARGAR DATOS (SIN CACHÉ)
   useEffect(() => {
     fetch('/api/plazas', { cache: 'no-store' })
       .then(res => res.json())
@@ -109,6 +115,7 @@ export default function ParkingApp() {
     const data = plazas[id];
     const ocupada = data?.estado === 'ocupada';
     
+    // Detectamos la plaza 27
     const isPlaza27 = id.includes('27'); 
     const isMoto = id.startsWith('M-'); 
 
@@ -117,6 +124,7 @@ export default function ParkingApp() {
     if (isMoto) {
         dimensionsClass = 'h-14 w-16 mb-1 flex-col justify-center items-center';
     } else if (isPlaza27 && !vertical) {
+        // La 27 horizontal y pegada a la derecha
         dimensionsClass = 'h-36 w-10 mb-1 flex-col items-center justify-between self-end'; 
     } else if (vertical) {
         dimensionsClass = 'h-10 w-36 mb-1 flex-row items-center justify-between'; 
@@ -140,7 +148,7 @@ export default function ParkingApp() {
             : 'border-emerald-500/50 bg-emerald-900/20 hover:bg-emerald-800/40 hover:border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.1)]'} 
         `}
       >
-        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[10px]'}
+        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[12px]'}
           ${isPlaza27 ? 'order-1' : ''} 
           ${!isPlaza27 && !isMoto && !vertical ? '-rotate-90' : ''} 
           ${ocupada ? 'text-slate-500 opacity-50' : 'text-emerald-400 opacity-90'}
@@ -238,10 +246,10 @@ export default function ParkingApp() {
           {/* CALLE INFERIOR */}
           <div className="mt-8 pt-8 border-t-4 border-dashed border-yellow-500/10 flex items-end pl-2 relative">
             
-            {/* ZONA MOTOS (AHORA SON 6 PLAZAS) */}
+            {/* ZONA MOTOS */}
             <div className="flex flex-col mr-20 relative z-10 gap-2">
                <div className="text-center font-black text-slate-600 text-xs tracking-widest">MOTOS</div>
-               {/* Grid de 2 columnas para que quepan bien */}
+               {/* Grid de 2 columnas */}
                <div className="grid grid-cols-2 gap-1 bg-slate-800/50 p-2 rounded border-2 border-dashed border-yellow-500/20">
                   {ZONAS.M.map((id: string) => <Plaza key={id} id={id} />)}
                </div>
@@ -264,7 +272,7 @@ export default function ParkingApp() {
         </div>
       </div>
 
-      {/* --- MODAL --- */}
+      {/* --- MODAL (CON SEGURIDAD Y TELÉFONO) --- */}
       {selectedPlaza && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden">
@@ -311,7 +319,7 @@ export default function ParkingApp() {
                      ) : (
                         <>
                            <button onClick={() => setShowDeleteConfirm(true)} className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-500 transition flex justify-center gap-2 items-center"><Trash2 size={18} /> BORRAR</button>
-                           <button onClick={() => setPlazas((prev: PlazasState) => ({...prev, [selectedPlaza]: {...prev[selectedPlaza], estado: 'libre'} }))} className="flex-1 bg-slate-800 text-slate-300 border border-slate-700 py-3 rounded-lg font-bold hover:bg-slate-700 transition">EDITAR</button>
+                           <button onClick={handleGuardar} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-500 transition flex justify-center gap-2 items-center"><Save size={18} /> GUARDAR</button>
                         </>
                      )}
                    </div>
