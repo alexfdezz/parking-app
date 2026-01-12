@@ -8,7 +8,12 @@ const uri = process.env.MONGODB_URI;
 const options = {};
 
 let client;
-let clientPromise;
+let clientPromise: Promise<MongoClient>;
+
+// Tipado para evitar errores de TypeScript en Vercel
+declare global {
+  var _mongoClientPromise: Promise<MongoClient> | undefined;
+}
 
 if (process.env.NODE_ENV === 'development') {
   if (!global._mongoClientPromise) {
