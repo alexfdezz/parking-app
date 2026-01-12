@@ -15,21 +15,14 @@ interface PlazaData {
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN (RECUPERADA LA ORIGINAL) ---
+// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE UNIFICADO: ZONAS) ---
 const ZONAS = {
-  // A: Del 14 al 1 (Bajando)
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
-  // B: Del 15 al 27 (Subiendo)
-  B: Array.from({ length: 13 }, (_, i) => `B-${String(15 + i).padStart(2, '0')}`),
-  // C: Del 42 al 28 (Bajando)
-  C: Array.from({ length: 15 }, (_, i) => `C-${String(42 - i).padStart(2, '0')}`),
-  // D: Del 43 al 57 (Subiendo)
-  D: Array.from({ length: 15 }, (_, i) => `D-${String(43 + i).padStart(2, '0')}`),
-  // E: Del 58 al 77 (Subiendo)
-  E: Array.from({ length: 20 }, (_, i) => `E-${String(58 + i).padStart(2, '0')}`),
-  // F: Del 86 al 78 (Bajando/Izquierda)
-  F: Array.from({ length: 9 },  (_, i) => `F-${String(86 - i).padStart(2, '0')}`),
-  // ZONA M (MOTOS): M-01 a M-06
+  B: Array.from({ length: 13 }, (_, i) => `B-${String(1 + i).padStart(2, '0')}`),
+  C: Array.from({ length: 15 }, (_, i) => `C-${String(15 - i).padStart(2, '0')}`),
+  D: Array.from({ length: 15 }, (_, i) => `D-${String(1 + i).padStart(2, '0')}`),
+  E: Array.from({ length: 20 }, (_, i) => `E-${String(1 + i).padStart(2, '0')}`),
+  F: Array.from({ length: 9 },  (_, i) => `F-${String(9 - i).padStart(2, '0')}`),
   M: Array.from({ length: 6 }, (_, i) => `M-${String(i + 1).padStart(2, '0')}`),
 };
 
@@ -40,7 +33,7 @@ export default function ParkingApp() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
 
-  // 1. CARGAR DATOS (SIN CACHÉ)
+  // 1. CARGAR DATOS
   useEffect(() => {
     fetch('/api/plazas', { cache: 'no-store' })
       .then(res => res.json())
@@ -115,7 +108,6 @@ export default function ParkingApp() {
     const data = plazas[id];
     const ocupada = data?.estado === 'ocupada';
     
-    // Detectamos la plaza 27
     const isPlaza27 = id.includes('27'); 
     const isMoto = id.startsWith('M-'); 
 
@@ -124,7 +116,6 @@ export default function ParkingApp() {
     if (isMoto) {
         dimensionsClass = 'h-14 w-16 mb-1 flex-col justify-center items-center';
     } else if (isPlaza27 && !vertical) {
-        // La 27 horizontal y pegada a la derecha
         dimensionsClass = 'h-36 w-10 mb-1 flex-col items-center justify-between self-end'; 
     } else if (vertical) {
         dimensionsClass = 'h-10 w-36 mb-1 flex-row items-center justify-between'; 
@@ -148,7 +139,7 @@ export default function ParkingApp() {
             : 'border-emerald-500/50 bg-emerald-900/20 hover:bg-emerald-800/40 hover:border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.1)]'} 
         `}
       >
-        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[12px]'}
+        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[10px]'}
           ${isPlaza27 ? 'order-1' : ''} 
           ${!isPlaza27 && !isMoto && !vertical ? '-rotate-90' : ''} 
           ${ocupada ? 'text-slate-500 opacity-50' : 'text-emerald-400 opacity-90'}
@@ -212,6 +203,7 @@ export default function ParkingApp() {
             {/* ZONA A */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
+              {/* CORRECCIÓN: Añadido tipo (id: string) para que TS no se queje */}
               {ZONAS.A.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
@@ -272,7 +264,7 @@ export default function ParkingApp() {
         </div>
       </div>
 
-      {/* --- MODAL (CON SEGURIDAD Y TELÉFONO) --- */}
+      {/* --- MODAL --- */}
       {selectedPlaza && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden">
