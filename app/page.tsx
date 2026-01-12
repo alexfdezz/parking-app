@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react';
 
-// --- TIPOS (Para que Vercel no se queje) ---
+// --- TIPOS ---
 interface PlazaData {
   id_plaza: string;
   estado: string;
@@ -16,24 +16,22 @@ interface PlazaData {
 type PlazasState = Record<string, PlazaData>;
 
 // --- CONFIGURACIÓN DE NUMERACIÓN ---
-const ZONAS = {
-  A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`), // 14 a 01
-  B: Array.from({ length: 13 }, (_, i) => `B-${String(1 + i).padStart(2, '0')}`),  // 01 a 13
-  C: Array.from({ length: 15 }, (_, i) => `C-${String(15 - i).padStart(2, '0')}`), // 15 a 01
-  D: Array.from({ length: 15 }, (_, i) => `D-${String(1 + i).padStart(2, '0')}`),  // 01 a 15
-  E: Array.from({ length: 20 }, (_, i) => `E-${String(1 + i).padStart(2, '0')}`),  // 01 a 20
-  F: Array.from({ length: 9 },  (_, i) => `F-${String(9 - i).padStart(2, '0')}`),  // 09 a 01
+const ZONES = {
+  A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
+  B: Array.from({ length: 13 }, (_, i) => `B-${String(1 + i).padStart(2, '0')}`),
+  C: Array.from({ length: 15 }, (_, i) => `C-${String(15 - i).padStart(2, '0')}`),
+  D: Array.from({ length: 15 }, (_, i) => `D-${String(1 + i).padStart(2, '0')}`),
+  E: Array.from({ length: 20 }, (_, i) => `E-${String(1 + i).padStart(2, '0')}`),
+  F: Array.from({ length: 9 },  (_, i) => `F-${String(9 - i).padStart(2, '0')}`),
+  // NUEVA ZONA M (MOTOS): 6 Plazas
+  M: Array.from({ length: 6 }, (_, i) => `M-${String(i + 1).padStart(2, '0')}`),
 };
 
 export default function ParkingApp() {
   const [plazas, setPlazas] = useState<PlazasState>({});
   const [loading, setLoading] = useState(true);
   const [selectedPlaza, setSelectedPlaza] = useState<string | null>(null);
-  
-  // Estado para la confirmación de borrado
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
-  // Datos del formulario
   const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
 
   // 1. CARGAR DATOS
@@ -56,14 +54,12 @@ export default function ParkingApp() {
   // 2. GUARDAR DATOS
   const handleGuardar = async () => {
     if (!selectedPlaza) return;
-    
     const nuevaData: PlazaData = {
       id_plaza: selectedPlaza,
       estado: 'ocupada',
       ...formData,
       fecha_entrada: new Date().toISOString()
     };
-
     setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: nuevaData }));
     setSelectedPlaza(null);
     setFormData({ nombre: '', matricula: '', telefono: '' });
@@ -78,22 +74,17 @@ export default function ParkingApp() {
   // 3. LIBERAR PLAZA
   const confirmarLiberacion = async () => {
     if (!selectedPlaza) return;
-
     const datosVacios: PlazaData = {
       id_plaza: selectedPlaza,
       estado: 'libre',
       nombre: '', matricula: '', telefono: ''
     };
-
     setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: datosVacios }));
     setSelectedPlaza(null);
     setFormData({ nombre: '', matricula: '', telefono: '' });
     setShowDeleteConfirm(false);
 
-    await fetch('/api/plazas', {
-      method: 'POST',
-      body: JSON.stringify(datosVacios)
-    });
+    await fetch('/api/plazas', { method: 'POST', body: JSON.stringify(datosVacios) });
   };
 
   // --- COMPONENTE: PASILLO ---
@@ -114,18 +105,20 @@ export default function ParkingApp() {
     const data = plazas[id];
     const ocupada = data?.estado === 'ocupada';
     
-    // Detectar plaza 27 de la zona B (B-27 o según tu numeración, aquí asumo el ID exacto)
-    // En tu configuración anterior usabas IDs como "27". Aquí uso los del objeto ZONES (A-01, etc).
-    // Si quieres usar solo números, ajusta la constante ZONES arriba.
     const isPlaza27 = id.includes('27'); 
+    const isMoto = id.startsWith('M-'); // Detectamos si es moto
 
     let dimensionsClass = '';
-    if (isPlaza27 && !vertical) {
-      dimensionsClass = 'h-36 w-10 mb-1 flex-col items-center justify-between self-end'; 
+    
+    if (isMoto) {
+        // Estilo especial para MOTOS (Cuadradas y pequeñas)
+        dimensionsClass = 'h-14 w-16 mb-1 flex-col justify-center items-center';
+    } else if (isPlaza27 && !vertical) {
+        dimensionsClass = 'h-36 w-10 mb-1 flex-col items-center justify-between self-end'; 
     } else if (vertical) {
-      dimensionsClass = 'h-10 w-36 mb-1 flex-row items-center justify-between'; 
+        dimensionsClass = 'h-10 w-36 mb-1 flex-row items-center justify-between'; 
     } else {
-      dimensionsClass = 'h-36 w-10 mr-1 flex-col items-center justify-between';
+        dimensionsClass = 'h-36 w-10 mr-1 flex-col items-center justify-between';
     }
 
     return (
@@ -144,9 +137,9 @@ export default function ParkingApp() {
             : 'border-emerald-500/50 bg-emerald-900/20 hover:bg-emerald-800/40 hover:border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.1)]'} 
         `}
       >
-        <span className={`font-black text-[10px] text-center
+        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[10px]'}
           ${isPlaza27 ? 'order-1' : ''} 
-          ${!isPlaza27 && !vertical ? '-rotate-90' : ''} 
+          ${!isPlaza27 && !isMoto && !vertical ? '-rotate-90' : ''} 
           ${ocupada ? 'text-slate-500 opacity-50' : 'text-emerald-400 opacity-90'}
         `}>
             {id}
@@ -154,24 +147,28 @@ export default function ParkingApp() {
 
         {ocupada && data ? (
           <div className={`flex items-center gap-2 
+            ${isMoto ? 'flex-col-reverse' : ''}
             ${isPlaza27 ? 'flex-col-reverse order-2' : ''} 
-            ${!isPlaza27 && !vertical ? 'flex-col-reverse' : ''}
-            ${!isPlaza27 && vertical ? 'flex-row-reverse' : ''}
+            ${!isPlaza27 && !isMoto && !vertical ? 'flex-col-reverse' : ''}
+            ${!isPlaza27 && !isMoto && vertical ? 'flex-row-reverse' : ''}
           `}>
-             <span className={`text-[10px] font-mono font-bold text-white bg-slate-950 px-1 border border-slate-700 rounded 
-               ${!isPlaza27 && !vertical ? '[writing-mode:vertical-rl] py-1' : ''}
+             <span className={`font-mono font-bold text-white bg-slate-950 px-1 border border-slate-700 rounded 
+               ${isMoto ? 'text-[8px] py-0.5' : 'text-[10px]'}
+               ${!isPlaza27 && !isMoto && !vertical ? '[writing-mode:vertical-rl] py-1' : ''}
                ${isPlaza27 ? '[writing-mode:vertical-rl] py-1' : ''}
              `}>
                {data.matricula}
              </span>
+             {/* Icono más pequeño para motos */}
              <Car className={`text-red-400 
-               ${!isPlaza27 && !vertical ? 'rotate-90' : ''}
+               ${isMoto ? '' : (!isPlaza27 && !vertical ? 'rotate-90' : '')}
                ${isPlaza27 ? 'rotate-90' : ''}
-             `} size={16} />
+             `} size={isMoto ? 14 : 16} />
           </div>
         ) : (
-          <span className={`text-[9px] text-emerald-500 font-bold opacity-60 group-hover:opacity-100 transition-opacity 
-            ${!isPlaza27 && !vertical ? '[writing-mode:vertical-rl]' : ''}
+          <span className={`text-emerald-500 font-bold opacity-60 group-hover:opacity-100 transition-opacity 
+            ${isMoto ? 'text-[8px]' : 'text-[9px]'}
+            ${!isPlaza27 && !isMoto && !vertical ? '[writing-mode:vertical-rl]' : ''}
             ${isPlaza27 ? '[writing-mode:vertical-rl]' : ''}
           `}>LIBRE</span>
         )}
@@ -199,13 +196,17 @@ export default function ParkingApp() {
       <div className="overflow-auto pb-20 cursor-grab active:cursor-grabbing">
         <div className="min-w-fit bg-[#1e293b] p-10 rounded-xl shadow-2xl mx-auto w-fit border-4 border-slate-800 relative">
           
+          <div className="absolute top-10 left-1/2 -translate-x-1/2 text-slate-800 text-6xl font-black tracking-[1em] opacity-30 select-none pointer-events-none">P1</div>
+
           <div className="flex justify-center items-start relative z-10 gap-0"> 
+            {/* ZONA A */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
               {ZONAS.A.map(id => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
             
+            {/* ISLA CENTRAL (B y C) */}
             <div className="flex gap-0 relative bg-slate-800/30 p-2 rounded border border-slate-700/50">
               <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-4 bg-slate-800 border-l border-r border-slate-600 rounded"></div>
               <div className="flex flex-col pr-4">
@@ -217,29 +218,34 @@ export default function ParkingApp() {
                  {ZONAS.C.map(id => <Plaza key={id} id={id} />)}
               </div>
             </div>
-
             <Pasillo direction="up" />
 
+            {/* ZONA D */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">D</div>
               {ZONAS.D.map(id => <Plaza key={id} id={id} />)}
             </div>
-
             <Pasillo direction="down" />
 
+             {/* ZONA E */}
              <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">E</div>
               {ZONAS.E.map(id => <Plaza key={id} id={id} />)}
             </div>
           </div>
 
+          {/* CALLE INFERIOR */}
           <div className="mt-8 pt-8 border-t-4 border-dashed border-yellow-500/10 flex items-end pl-2 relative">
-            <div className="flex flex-col mr-20 relative z-10">
-               <div className="w-36 h-32 bg-[url('https://www.transparenttextures.com/patterns/diagonal-striped-brick.png')] bg-slate-800 rounded border-2 border-yellow-500/20 flex flex-col items-center justify-center text-slate-500 text-center p-2 shadow-inner">
-                  <MapPin size={24} className="mb-1 opacity-50"/>
-                  <span className="text-[10px] font-black uppercase tracking-widest">ZONA<br/>MOTOS</span>
+            
+            {/* ZONA MOTOS (AHORA SON 6 PLAZAS) */}
+            <div className="flex flex-col mr-20 relative z-10 gap-2">
+               <div className="text-center font-black text-slate-600 text-xs tracking-widest">MOTOS</div>
+               {/* Grid de 2 columnas para que quepan bien */}
+               <div className="grid grid-cols-2 gap-1 bg-slate-800/50 p-2 rounded border-2 border-dashed border-yellow-500/20">
+                  {ZONES.M.map(id => <Plaza key={id} id={id} />)}
                </div>
             </div>
+
             <div className="flex flex-col w-full relative z-10">
                <div className="text-left font-black text-slate-600 text-xl mb-2 ml-2 tracking-widest">F</div>
                <div className="flex gap-1">
