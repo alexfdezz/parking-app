@@ -15,14 +15,21 @@ interface PlazaData {
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE UNIFICADO: ZONAS) ---
+// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE CORREGIDO: ZONAS) ---
 const ZONAS = {
+  // A: Del 14 al 1 (Bajando)
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
-  B: Array.from({ length: 13 }, (_, i) => `B-${String(1 + i).padStart(2, '0')}`),
-  C: Array.from({ length: 15 }, (_, i) => `C-${String(15 - i).padStart(2, '0')}`),
-  D: Array.from({ length: 15 }, (_, i) => `D-${String(1 + i).padStart(2, '0')}`),
-  E: Array.from({ length: 20 }, (_, i) => `E-${String(1 + i).padStart(2, '0')}`),
-  F: Array.from({ length: 9 },  (_, i) => `F-${String(9 - i).padStart(2, '0')}`),
+  // B: Del 15 al 27 (Subiendo)
+  B: Array.from({ length: 13 }, (_, i) => `B-${String(15 + i).padStart(2, '0')}`),
+  // C: Del 42 al 28 (Bajando)
+  C: Array.from({ length: 15 }, (_, i) => `C-${String(42 - i).padStart(2, '0')}`),
+  // D: Del 43 al 57 (Subiendo)
+  D: Array.from({ length: 15 }, (_, i) => `D-${String(43 + i).padStart(2, '0')}`),
+  // E: Del 58 al 77 (Subiendo)
+  E: Array.from({ length: 20 }, (_, i) => `E-${String(58 + i).padStart(2, '0')}`),
+  // F: Del 86 al 78 (Bajando/Izquierda)
+  F: Array.from({ length: 9 },  (_, i) => `F-${String(86 - i).padStart(2, '0')}`),
+  // ZONA M (MOTOS): M-01 a M-06
   M: Array.from({ length: 6 }, (_, i) => `M-${String(i + 1).padStart(2, '0')}`),
 };
 
@@ -33,7 +40,7 @@ export default function ParkingApp() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
 
-  // 1. CARGAR DATOS
+  // 1. CARGAR DATOS (SIN CACHÉ)
   useEffect(() => {
     fetch('/api/plazas', { cache: 'no-store' })
       .then(res => res.json())
@@ -108,8 +115,13 @@ export default function ParkingApp() {
     const data = plazas[id];
     const ocupada = data?.estado === 'ocupada';
     
+    // Detectamos la plaza 27
     const isPlaza27 = id.includes('27'); 
     const isMoto = id.startsWith('M-'); 
+
+    // LIMPIEZA VISUAL: Quitamos la letra para mostrar solo el número (Ej: "A-14" -> "14")
+    // Si es moto (M-01) lo dejamos igual o quitamos M si prefieres. Aquí dejamos M.
+    const numeroVisible = isMoto ? id : id.split('-')[1];
 
     let dimensionsClass = '';
     
@@ -139,32 +151,28 @@ export default function ParkingApp() {
             : 'border-emerald-500/50 bg-emerald-900/20 hover:bg-emerald-800/40 hover:border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.1)]'} 
         `}
       >
-        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[10px]'}
+        <span className={`font-black text-center ${isMoto ? 'text-[10px]' : 'text-[14px]'}
           ${isPlaza27 ? 'order-1' : ''} 
           ${!isPlaza27 && !isMoto && !vertical ? '-rotate-90' : ''} 
           ${ocupada ? 'text-slate-500 opacity-50' : 'text-emerald-400 opacity-90'}
         `}>
-            {id}
+            {numeroVisible}
         </span>
 
         {ocupada && data ? (
-          <div className={`flex items-center gap-2 
+          <div className={`flex items-center gap-2 w-full justify-end overflow-hidden
             ${isMoto ? 'flex-col-reverse' : ''}
             ${isPlaza27 ? 'flex-col-reverse order-2' : ''} 
             ${!isPlaza27 && !isMoto && !vertical ? 'flex-col-reverse' : ''}
             ${!isPlaza27 && !isMoto && vertical ? 'flex-row-reverse' : ''}
           `}>
-             <span className={`font-mono font-bold text-white bg-slate-950 px-1 border border-slate-700 rounded 
-               ${isMoto ? 'text-[8px] py-0.5' : 'text-[10px]'}
+             <span className={`font-bold text-white bg-slate-950/80 px-1 border border-slate-700 rounded text-center truncate w-full text-[10px]
+               ${isMoto ? 'py-0.5' : ''}
                ${!isPlaza27 && !isMoto && !vertical ? '[writing-mode:vertical-rl] py-1' : ''}
                ${isPlaza27 ? '[writing-mode:vertical-rl] py-1' : ''}
              `}>
-               {data.matricula}
+               {data.nombre || 'Ocupado'}
              </span>
-             <Car className={`text-red-400 
-               ${isMoto ? '' : (!isPlaza27 && !vertical ? 'rotate-90' : '')}
-               ${isPlaza27 ? 'rotate-90' : ''}
-             `} size={isMoto ? 14 : 16} />
           </div>
         ) : (
           <span className={`text-emerald-500 font-bold opacity-60 group-hover:opacity-100 transition-opacity 
@@ -203,7 +211,6 @@ export default function ParkingApp() {
             {/* ZONA A */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
-              {/* CORRECCIÓN: Añadido tipo (id: string) para que TS no se queje */}
               {ZONAS.A.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
@@ -211,10 +218,16 @@ export default function ParkingApp() {
             {/* ISLA CENTRAL (B y C) */}
             <div className="flex gap-0 relative bg-slate-800/30 p-2 rounded border border-slate-700/50">
               <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-4 bg-slate-800 border-l border-r border-slate-600 rounded"></div>
+              
+              {/* COLUMNA B (15-26 + 27 Especial) */}
               <div className="flex flex-col pr-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">B</div>
-                 {ZONAS.B.map((id: string) => <Plaza key={id} id={id} />)}
+                 {/* Renderizamos todas MENOS la 27 */}
+                 {ZONAS.B.filter((id: string) => !id.includes('27')).map((id: string) => <Plaza key={id} id={id} />)}
+                 {/* Renderizamos la 27 ESPECIAL */}
+                 <Plaza id="B-27" />
               </div>
+
               <div className="flex flex-col pl-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">C</div>
                  {ZONAS.C.map((id: string) => <Plaza key={id} id={id} />)}
