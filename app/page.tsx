@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Car, User, Save, Trash2, X, MapPin, ArrowDown, ArrowUp, ArrowRight, Phone, AlertTriangle } from 'lucide-react';
+import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react';
 
-// --- TIPOS ---
+// --- TIPOS (Para que Vercel no se queje) ---
 interface PlazaData {
   id_plaza: string;
   estado: string;
@@ -15,82 +15,85 @@ interface PlazaData {
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN EXACTA ---
+// --- CONFIGURACIÓN DE NUMERACIÓN ---
 const ZONAS = {
-  A: Array.from({ length: 14 }, (_, i) => String(14 - i)),
-  B: Array.from({ length: 13 }, (_, i) => String(15 + i)),
-  C: Array.from({ length: 15 }, (_, i) => String(42 - i)),
-  D: Array.from({ length: 15 }, (_, i) => String(43 + i)),
-  E: Array.from({ length: 20 }, (_, i) => String(58 + i)),
-  F: Array.from({ length: 9 },  (_, i) => String(86 - i)),
+  A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`), // 14 a 01
+  B: Array.from({ length: 13 }, (_, i) => `B-${String(1 + i).padStart(2, '0')}`),  // 01 a 13
+  C: Array.from({ length: 15 }, (_, i) => `C-${String(15 - i).padStart(2, '0')}`), // 15 a 01
+  D: Array.from({ length: 15 }, (_, i) => `D-${String(1 + i).padStart(2, '0')}`),  // 01 a 15
+  E: Array.from({ length: 20 }, (_, i) => `E-${String(1 + i).padStart(2, '0')}`),  // 01 a 20
+  F: Array.from({ length: 9 },  (_, i) => `F-${String(9 - i).padStart(2, '0')}`),  // 09 a 01
 };
 
 export default function ParkingApp() {
   const [plazas, setPlazas] = useState<PlazasState>({});
   const [loading, setLoading] = useState(true);
   const [selectedPlaza, setSelectedPlaza] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
   
-  // ESTADO PARA CONFIRMACIÓN DE BORRADO
+  // Estado para la confirmación de borrado
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Datos del formulario
+  const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
 
-  // 1. CARGAR DATOS (SIN CACHÉ)
-  useEffect(() => { fetchPlazas(); }, []);
-
-  const fetchPlazas = async () => {
-    try {
-      // AÑADIDO: cache: 'no-store' para evitar datos viejos
-      const res = await fetch('/api/plazas', { cache: 'no-store' });
-      const data = await res.json();
-      const mapaPlazas: PlazasState = {};
-      if (Array.isArray(data)) {
-        data.forEach((p: PlazaData) => {
-          mapaPlazas[p.id_plaza] = p;
-        });
-      }
-      setPlazas(mapaPlazas);
-      setLoading(false);
-    } catch (error) { 
-      console.error(error);
-      setLoading(false);
-    }
-  };
+  // 1. CARGAR DATOS
+  useEffect(() => {
+    fetch('/api/plazas', { cache: 'no-store' })
+      .then(res => res.json())
+      .then((data: any) => {
+        const mapa: PlazasState = {};
+        if(Array.isArray(data)) {
+            data.forEach((p: PlazaData) => {
+                mapa[p.id_plaza] = p;
+            });
+        }
+        setPlazas(mapa);
+        setLoading(false);
+      })
+      .catch((err) => console.error("Error cargando:", err));
+  }, []);
 
   // 2. GUARDAR DATOS
   const handleGuardar = async () => {
     if (!selectedPlaza) return;
-    const nuevaData: PlazaData = { 
-      id_plaza: selectedPlaza, 
-      estado: 'ocupada', 
-      ...formData, 
-      fecha_entrada: new Date().toISOString() 
+    
+    const nuevaData: PlazaData = {
+      id_plaza: selectedPlaza,
+      estado: 'ocupada',
+      ...formData,
+      fecha_entrada: new Date().toISOString()
     };
+
     setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: nuevaData }));
     setSelectedPlaza(null);
     setFormData({ nombre: '', matricula: '', telefono: '' });
 
-    await fetch('/api/plazas', { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify(nuevaData) 
+    await fetch('/api/plazas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nuevaData)
     });
   };
 
-  // 3. LIBERAR PLAZA (Lógica interna)
-  const ejecutarLiberacion = async () => {
+  // 3. LIBERAR PLAZA
+  const confirmarLiberacion = async () => {
     if (!selectedPlaza) return;
-    const datosVacios: PlazaData = { 
-      id_plaza: selectedPlaza, 
-      estado: 'libre', 
-      nombre: '', 
-      matricula: '', 
-      telefono: '' 
+
+    const datosVacios: PlazaData = {
+      id_plaza: selectedPlaza,
+      estado: 'libre',
+      nombre: '', matricula: '', telefono: ''
     };
+
     setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: datosVacios }));
     setSelectedPlaza(null);
-    setShowDeleteConfirm(false); // Reseteamos el aviso
-    
-    await fetch('/api/plazas', { method: 'POST', body: JSON.stringify(datosVacios) });
+    setFormData({ nombre: '', matricula: '', telefono: '' });
+    setShowDeleteConfirm(false);
+
+    await fetch('/api/plazas', {
+      method: 'POST',
+      body: JSON.stringify(datosVacios)
+    });
   };
 
   // --- COMPONENTE: PASILLO ---
@@ -111,10 +114,13 @@ export default function ParkingApp() {
     const data = plazas[id];
     const ocupada = data?.estado === 'ocupada';
     
-    const isPlaza27 = id === '27';
+    // Detectar plaza 27 de la zona B (B-27 o según tu numeración, aquí asumo el ID exacto)
+    // En tu configuración anterior usabas IDs como "27". Aquí uso los del objeto ZONES (A-01, etc).
+    // Si quieres usar solo números, ajusta la constante ZONES arriba.
+    const isPlaza27 = id.includes('27'); 
 
     let dimensionsClass = '';
-    if (isPlaza27) {
+    if (isPlaza27 && !vertical) {
       dimensionsClass = 'h-36 w-10 mb-1 flex-col items-center justify-between self-end'; 
     } else if (vertical) {
       dimensionsClass = 'h-10 w-36 mb-1 flex-row items-center justify-between'; 
@@ -126,8 +132,8 @@ export default function ParkingApp() {
       <div 
         onClick={() => {
           setSelectedPlaza(id);
-          setShowDeleteConfirm(false); // IMPORTANTE: Reseteamos el aviso al cambiar de plaza
-          if (ocupada) setFormData({ nombre: data.nombre || '', matricula: data.matricula || '', telefono: data.telefono || '' });
+          setShowDeleteConfirm(false); 
+          if (ocupada && data) setFormData({ nombre: data.nombre || '', matricula: data.matricula || '', telefono: data.telefono || '' });
           else setFormData({ nombre: '', matricula: '', telefono: '' });
         }}
         className={`
@@ -138,7 +144,7 @@ export default function ParkingApp() {
             : 'border-emerald-500/50 bg-emerald-900/20 hover:bg-emerald-800/40 hover:border-emerald-400 shadow-[0_0_5px_rgba(16,185,129,0.1)]'} 
         `}
       >
-        <span className={`font-black text-[12px] text-center
+        <span className={`font-black text-[10px] text-center
           ${isPlaza27 ? 'order-1' : ''} 
           ${!isPlaza27 && !vertical ? '-rotate-90' : ''} 
           ${ocupada ? 'text-slate-500 opacity-50' : 'text-emerald-400 opacity-90'}
@@ -146,7 +152,7 @@ export default function ParkingApp() {
             {id}
         </span>
 
-        {ocupada ? (
+        {ocupada && data ? (
           <div className={`flex items-center gap-2 
             ${isPlaza27 ? 'flex-col-reverse order-2' : ''} 
             ${!isPlaza27 && !vertical ? 'flex-col-reverse' : ''}
@@ -180,9 +186,9 @@ export default function ParkingApp() {
         <div>
           <h1 className="text-xl font-bold text-white flex gap-2 items-center tracking-tight">
              <div className="bg-emerald-500 p-1 rounded text-slate-900"><Car size={20} strokeWidth={2.5} /></div>
-             PARKING <span className="text-emerald-500">MANAGER</span>
+             PARKING <span className="text-emerald-500">GENERAL</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1 ml-1">Control de acceso • Planta 1</p>
+          <p className="text-xs text-slate-400 mt-1 ml-1">Control de acceso</p>
         </div>
         <div className="flex gap-2 text-xs font-mono bg-slate-950 border border-slate-700 px-3 py-1 rounded-full text-green-400 items-center shadow-inner">
              <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-500' : 'bg-green-500 animate-pulse'}`}></div>
@@ -192,14 +198,14 @@ export default function ParkingApp() {
 
       <div className="overflow-auto pb-20 cursor-grab active:cursor-grabbing">
         <div className="min-w-fit bg-[#1e293b] p-10 rounded-xl shadow-2xl mx-auto w-fit border-4 border-slate-800 relative">
-          <div className="absolute top-10 left-1/2 -translate-x-1/2 text-slate-800 text-6xl font-black tracking-[1em] opacity-30 select-none pointer-events-none">P1</div>
-
+          
           <div className="flex justify-center items-start relative z-10 gap-0"> 
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
               {ZONAS.A.map(id => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
+            
             <div className="flex gap-0 relative bg-slate-800/30 p-2 rounded border border-slate-700/50">
               <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-4 bg-slate-800 border-l border-r border-slate-600 rounded"></div>
               <div className="flex flex-col pr-4">
@@ -211,12 +217,16 @@ export default function ParkingApp() {
                  {ZONAS.C.map(id => <Plaza key={id} id={id} />)}
               </div>
             </div>
+
             <Pasillo direction="up" />
+
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">D</div>
               {ZONAS.D.map(id => <Plaza key={id} id={id} />)}
             </div>
+
             <Pasillo direction="down" />
+
              <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">E</div>
               {ZONAS.E.map(id => <Plaza key={id} id={id} />)}
@@ -224,11 +234,6 @@ export default function ParkingApp() {
           </div>
 
           <div className="mt-8 pt-8 border-t-4 border-dashed border-yellow-500/10 flex items-end pl-2 relative">
-            <div className="absolute top-4 w-full flex justify-around opacity-20 pointer-events-none pr-32">
-                <ArrowRight size={40} strokeWidth={3} className="text-slate-500"/>
-                <ArrowRight size={40} strokeWidth={3} className="text-slate-500"/>
-                <ArrowRight size={40} strokeWidth={3} className="text-slate-500"/>
-            </div>
             <div className="flex flex-col mr-20 relative z-10">
                <div className="w-36 h-32 bg-[url('https://www.transparenttextures.com/patterns/diagonal-striped-brick.png')] bg-slate-800 rounded border-2 border-yellow-500/20 flex flex-col items-center justify-center text-slate-500 text-center p-2 shadow-inner">
                   <MapPin size={24} className="mb-1 opacity-50"/>
@@ -245,7 +250,7 @@ export default function ParkingApp() {
         </div>
       </div>
 
-      {/* --- MODAL (ACTUALIZADO CON SEGURIDAD) --- */}
+      {/* --- MODAL --- */}
       {selectedPlaza && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden">
@@ -256,7 +261,6 @@ export default function ParkingApp() {
             
             <div className="p-6 space-y-6">
               {plazas[selectedPlaza]?.estado === 'ocupada' ? (
-                // --- VISTA OCUPADA ---
                 <div className="space-y-4">
                    <div className="grid grid-cols-2 gap-4">
                      <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
@@ -278,17 +282,16 @@ export default function ParkingApp() {
                       </div>
                    </div>
 
-                   {/* BOTONERA CON SEGURIDAD */}
                    <div className="pt-4 flex gap-3">
                      {showDeleteConfirm ? (
                         <div className="w-full bg-red-900/20 border border-red-500/50 p-4 rounded-lg flex flex-col gap-3 animate-in fade-in zoom-in-95">
                           <div className="flex items-center gap-2 text-red-400 font-bold justify-center text-sm">
                               <AlertTriangle size={18}/>
-                              <span>¿Estás seguro que deseas eliminar?</span>
+                              <span>¿Estás seguro?</span>
                           </div>
                           <div className="flex gap-2">
                               <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 bg-slate-800 text-white rounded font-bold hover:bg-slate-700 text-sm">Cancelar</button>
-                              <button onClick={ejecutarLiberacion} className="flex-1 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 text-sm">Sí, Eliminar</button>
+                              <button onClick={confirmarLiberacion} className="flex-1 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 text-sm">Sí, Eliminar</button>
                           </div>
                         </div>
                      ) : (
@@ -300,42 +303,28 @@ export default function ParkingApp() {
                    </div>
                 </div>
               ) : (
-                // --- VISTA LIBRE ---
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <label className="text-xs text-slate-400 uppercase font-bold tracking-wider ml-1">Nombre del Cliente</label>
+                    <label className="text-xs text-slate-400 uppercase font-bold tracking-wider ml-1">Nombre</label>
                     <div className="relative group">
-                      <User className="absolute left-3 top-3.5 text-slate-500 group-focus-within:text-emerald-500 transition" size={20} />
-                      <input className="w-full pl-10 p-4 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition text-white" 
-                             placeholder="Nombre completo" 
-                             value={formData.nombre} 
-                             onChange={e => setFormData({...formData, nombre: e.target.value})} />
+                      <User className="absolute left-3 top-3.5 text-slate-500 transition" size={20} />
+                      <input className="w-full pl-10 p-4 bg-slate-950 border border-slate-700 rounded-lg text-white" placeholder="Nombre completo" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} />
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <label className="text-xs text-slate-400 uppercase font-bold tracking-wider ml-1">Teléfono</label>
                     <div className="relative group">
-                      <Phone className="absolute left-3 top-3.5 text-slate-500 group-focus-within:text-emerald-500 transition" size={20} />
-                      <input className="w-full pl-10 p-4 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition text-white" 
-                             placeholder="Ej. 600 123 456" 
-                             type="tel"
-                             value={formData.telefono} 
-                             onChange={e => setFormData({...formData, telefono: e.target.value})} />
+                      <Phone className="absolute left-3 top-3.5 text-slate-500 transition" size={20} />
+                      <input className="w-full pl-10 p-4 bg-slate-950 border border-slate-700 rounded-lg text-white" placeholder="Ej. 600 123 456" value={formData.telefono} onChange={e => setFormData({...formData, telefono: e.target.value})} />
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <label className="text-xs text-slate-400 uppercase font-bold tracking-wider ml-1">Matrícula</label>
                     <div className="relative group">
-                      <Car className="absolute left-3 top-3.5 text-slate-500 group-focus-within:text-emerald-500 transition" size={20} />
-                      <input className="w-full pl-10 p-4 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition font-mono uppercase text-white text-xl tracking-wider" 
-                             placeholder="0000 XXX" 
-                             value={formData.matricula} 
-                             onChange={e => setFormData({...formData, matricula: e.target.value.toUpperCase()})} />
+                      <Car className="absolute left-3 top-3.5 text-slate-500 transition" size={20} />
+                      <input className="w-full pl-10 p-4 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-xl" placeholder="0000 XXX" value={formData.matricula} onChange={e => setFormData({...formData, matricula: e.target.value.toUpperCase()})} />
                     </div>
                   </div>
-                  
                   <button onClick={handleGuardar} disabled={!formData.matricula} className="w-full bg-emerald-500 text-slate-900 py-4 rounded-lg font-black tracking-wide hover:bg-emerald-400 transition flex justify-center gap-2 items-center disabled:opacity-50 mt-6"><Save size={20} /> ENTRADA</button>
                 </div>
               )}
@@ -345,4 +334,4 @@ export default function ParkingApp() {
       )}
     </div>
   );
-}S
+}
