@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown, MapPin, ArrowRight } from 'lucide-react';
+import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown, MapPin, ArrowRight, Edit3 } from 'lucide-react';
 
 // --- TIPOS ---
 interface PlazaData {
@@ -15,7 +15,7 @@ interface PlazaData {
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE DEFINITIVO: ZONES) ---
+// --- CONFIGURACIÓN DE NUMERACIÓN (ZONES) ---
 const ZONES = {
   // A: 14 arriba -> 01 abajo
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
@@ -36,8 +36,11 @@ const ZONES = {
 export default function ParkingApp() {
   const [plazas, setPlazas] = useState<PlazasState>({});
   const [loading, setLoading] = useState(true);
+  
+  // Estados del Modal
   const [selectedPlaza, setSelectedPlaza] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // NUEVO: Estado para editar
   const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
 
   // 1. CARGAR DATOS
@@ -57,7 +60,27 @@ export default function ParkingApp() {
       .catch((err) => console.error("Error cargando:", err));
   }, []);
 
-  // 2. GUARDAR DATOS
+  // 2. ABRIR MODAL
+  const handlePlazaClick = (id: string) => {
+    const data = plazas[id];
+    const ocupada = data?.estado === 'ocupada';
+    
+    setSelectedPlaza(id);
+    setShowDeleteConfirm(false);
+    setIsEditing(false); // Reseteamos modo edición al abrir
+
+    if (ocupada && data) {
+      setFormData({ 
+        nombre: data.nombre || '', 
+        matricula: data.matricula || '', 
+        telefono: data.telefono || '' 
+      });
+    } else {
+      setFormData({ nombre: '', matricula: '', telefono: '' });
+    }
+  };
+
+  // 3. GUARDAR DATOS (Sirve para crear nuevo o actualizar existente)
   const handleGuardar = async () => {
     if (!selectedPlaza) return;
     
@@ -65,11 +88,16 @@ export default function ParkingApp() {
       id_plaza: selectedPlaza,
       estado: 'ocupada',
       ...formData,
-      fecha_entrada: new Date().toISOString()
+      fecha_entrada: plazas[selectedPlaza]?.fecha_entrada || new Date().toISOString() // Mantiene fecha si editas
     };
 
+    // Actualizar estado local
     setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: nuevaData }));
+    
+    // Si estábamos editando, cerramos modo edición pero mantenemos modal abierto o cerramos, a tu gusto.
+    // Aquí cerramos el modal al guardar.
     setSelectedPlaza(null);
+    setIsEditing(false);
     setFormData({ nombre: '', matricula: '', telefono: '' });
 
     await fetch('/api/plazas', {
@@ -79,7 +107,7 @@ export default function ParkingApp() {
     });
   };
 
-  // 3. LIBERAR PLAZA
+  // 4. LIBERAR PLAZA
   const confirmarLiberacion = async () => {
     if (!selectedPlaza) return;
 
@@ -127,25 +155,21 @@ export default function ParkingApp() {
     if (isMoto) {
         // MOTOS: Cuadradas y pequeñas
         dimensionsClass = 'h-14 w-14 mb-1 flex-col justify-center items-center';
-    } else if (isPlaza27 && !vertical) {
-        // PLAZA 27: Vertical y especial
-        dimensionsClass = 'h-36 w-10 mt-1 flex-col items-center justify-between self-end'; 
+    } else if (isPlaza27) {
+        // --- CAMBIO CLAVE PARA PLAZA 27 ---
+        // Forzamos verticalidad absoluta: Alto grande, ancho pequeño.
+        dimensionsClass = 'h-32 w-12 mt-4 mx-auto flex-col items-center justify-between'; 
     } else if (vertical) {
-        // Normal Vertical
+        // Normal Vertical (Listas A, B, C, D, E)
         dimensionsClass = 'h-10 w-36 mb-1 flex-row items-center justify-between'; 
     } else {
-        // Normal Horizontal (Fila de abajo)
+        // Normal Horizontal (Fila F de abajo)
         dimensionsClass = 'h-36 w-10 mr-1 flex-col items-center justify-between';
     }
 
     return (
       <div 
-        onClick={() => {
-          setSelectedPlaza(id);
-          setShowDeleteConfirm(false); 
-          if (ocupada && data) setFormData({ nombre: data.nombre || '', matricula: data.matricula || '', telefono: data.telefono || '' });
-          else setFormData({ nombre: '', matricula: '', telefono: '' });
-        }}
+        onClick={() => handlePlazaClick(id)}
         className={`
           relative cursor-pointer transition-all duration-300 group border-2 rounded-sm px-2
           ${dimensionsClass}
@@ -156,10 +180,14 @@ export default function ParkingApp() {
       >
         <span className={`font-black text-center whitespace-nowrap
           ${isMoto ? 'text-[12px]' : 'text-[14px]'}
-          ${isPlaza27 ? 'order-1' : ''} 
-          /* ROTACIÓN DEL TEXTO: */
-          /* Si NO es la 27, NO es moto y NO es vertical (es la fila de abajo), rotamos el texto */
-          ${!isPlaza27 && !isMoto && !vertical ? '-rotate-90' : ''} 
+          
+          /* ROTACIÓN DEL TEXTO */
+          /* Si es la 27, el número va arriba normal */
+          ${isPlaza27 ? 'order-1' : ''}
+          
+          /* Si es la F (no vertical), rotamos el número */
+          ${!isMoto && !vertical ? '-rotate-90' : ''} 
+          
           ${ocupada ? 'text-slate-500 opacity-50' : 'text-emerald-400 opacity-90'}
         `}>
             {numeroVisible}
@@ -168,7 +196,10 @@ export default function ParkingApp() {
         {ocupada && data ? (
           <div className={`flex items-center gap-2 w-full justify-end overflow-hidden
             ${isMoto ? 'flex-col-reverse justify-center' : ''}
-            ${isPlaza27 ? 'flex-col-reverse order-2' : ''} 
+            
+            /* PLAZA 27: Texto vertical hacia abajo */
+            ${isPlaza27 ? 'order-2 [writing-mode:vertical-rl] py-1 items-center' : ''}
+            
             ${!isPlaza27 && !isMoto && !vertical ? 'flex-col-reverse' : ''}
             ${!isPlaza27 && !isMoto && vertical ? 'flex-row-reverse' : ''}
           `}>
@@ -176,7 +207,7 @@ export default function ParkingApp() {
                ${isMoto ? 'text-[8px] py-0.5' : 'text-[10px]'}
                ${isMoto ? '' : 'py-0.5'}
                ${!isPlaza27 && !isMoto && !vertical ? '[writing-mode:vertical-rl] py-1' : ''}
-               ${isPlaza27 ? '[writing-mode:vertical-rl] py-1' : ''}
+               /* Sin estilos extra raros para la 27, writing-mode ya está en el padre */
              `}>
                {data.nombre || 'Ocupado'}
              </span>
@@ -185,6 +216,7 @@ export default function ParkingApp() {
           <span className={`text-emerald-500 font-bold opacity-60 group-hover:opacity-100 transition-opacity 
             ${isMoto ? 'text-[8px]' : 'text-[9px]'}
             ${!isPlaza27 && !isMoto && !vertical ? '[writing-mode:vertical-rl]' : ''}
+            /* PLAZA 27: Libre en vertical */
             ${isPlaza27 ? '[writing-mode:vertical-rl]' : ''}
           `}>LIBRE</span>
         )}
@@ -218,7 +250,6 @@ export default function ParkingApp() {
             {/* ZONA A */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
-              {/* USO CORRECTO: ZONES.A */}
               {ZONES.A.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
@@ -229,8 +260,9 @@ export default function ParkingApp() {
               
               <div className="flex flex-col pr-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">B</div>
-                 {/* FILTRO PLAZA 27 */}
+                 {/* ZONA B: Renderizamos todas menos la 27, y luego la 27 manualmente al final */}
                  {ZONES.B.filter((id: string) => !id.includes('27')).map((id: string) => <Plaza key={id} id={id} />)}
+                 {/* La 27 se renderiza aquí al final de la columna B */}
                  <Plaza id="B-27" />
               </div>
 
@@ -287,12 +319,17 @@ export default function ParkingApp() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden">
             <div className="bg-slate-800 p-5 border-b border-slate-700 flex justify-between items-center">
-              <h3 className="text-2xl font-black text-white tracking-tight flex items-center gap-2"><span className="text-emerald-500">PLAZA</span> {selectedPlaza}</h3>
+              <h3 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                <span className="text-emerald-500">PLAZA</span> {selectedPlaza}
+              </h3>
               <button onClick={() => setSelectedPlaza(null)} className="hover:bg-slate-700 p-2 rounded-full text-slate-400 transition"><X size={24}/></button>
             </div>
             
             <div className="p-6 space-y-6">
-              {plazas[selectedPlaza]?.estado === 'ocupada' ? (
+              
+              {/* LÓGICA DEL MODAL: Mostrar Info Estática vs Formulario */}
+              {plazas[selectedPlaza]?.estado === 'ocupada' && !isEditing ? (
+                // --- MODO VISUALIZACIÓN (Ocupada) ---
                 <div className="space-y-4">
                    <div className="grid grid-cols-2 gap-4">
                      <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
@@ -314,7 +351,8 @@ export default function ParkingApp() {
                       </div>
                    </div>
 
-                   <div className="pt-4 flex gap-3">
+                   {/* Botones de acción */}
+                   <div className="pt-4 flex gap-3 flex-col">
                      {showDeleteConfirm ? (
                         <div className="w-full bg-red-900/20 border border-red-500/50 p-4 rounded-lg flex flex-col gap-3 animate-in fade-in zoom-in-95">
                           <div className="flex items-center gap-2 text-red-400 font-bold justify-center text-sm">
@@ -327,15 +365,21 @@ export default function ParkingApp() {
                           </div>
                         </div>
                      ) : (
-                        <>
-                           <button onClick={() => setShowDeleteConfirm(true)} className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-500 transition flex justify-center gap-2 items-center"><Trash2 size={18} /> BORRAR</button>
-                           <button onClick={handleGuardar} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-500 transition flex justify-center gap-2 items-center"><Save size={18} /> GUARDAR</button>
-                        </>
+                        <div className="flex gap-2 w-full">
+                           <button onClick={() => setShowDeleteConfirm(true)} className="flex-1 bg-red-600/10 text-red-500 border border-red-600/50 py-3 rounded-lg font-bold hover:bg-red-600 hover:text-white transition flex justify-center gap-2 items-center text-sm">
+                             <Trash2 size={18} /> LIBERAR
+                           </button>
+                           {/* BOTÓN EDITAR */}
+                           <button onClick={() => setIsEditing(true)} className="flex-1 bg-blue-600/10 text-blue-400 border border-blue-600/50 py-3 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition flex justify-center gap-2 items-center text-sm">
+                             <Edit3 size={18} /> EDITAR DATOS
+                           </button>
+                        </div>
                      )}
                    </div>
                 </div>
               ) : (
-                <div className="space-y-5">
+                // --- MODO EDICIÓN / NUEVO REGISTRO ---
+                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2">
                   <div className="space-y-2">
                     <label className="text-xs text-slate-400 uppercase font-bold tracking-wider ml-1">Nombre</label>
                     <div className="relative group">
@@ -357,9 +401,19 @@ export default function ParkingApp() {
                       <input className="w-full pl-10 p-4 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-xl" placeholder="0000 XXX" value={formData.matricula} onChange={e => setFormData({...formData, matricula: e.target.value.toUpperCase()})} />
                     </div>
                   </div>
-                  <button onClick={handleGuardar} disabled={!formData.matricula} className="w-full bg-emerald-500 text-slate-900 py-4 rounded-lg font-black tracking-wide hover:bg-emerald-400 transition flex justify-center gap-2 items-center disabled:opacity-50 mt-6"><Save size={20} /> ENTRADA</button>
+                  
+                  <div className="flex gap-2 mt-6">
+                    {/* Botón cancelar edición si ya estaba ocupada */}
+                    {plazas[selectedPlaza]?.estado === 'ocupada' && (
+                        <button onClick={() => setIsEditing(false)} className="px-4 bg-slate-800 text-slate-300 rounded-lg font-bold hover:bg-slate-700">Cancelar</button>
+                    )}
+                    <button onClick={handleGuardar} disabled={!formData.matricula} className="flex-1 bg-emerald-500 text-slate-900 py-4 rounded-lg font-black tracking-wide hover:bg-emerald-400 transition flex justify-center gap-2 items-center disabled:opacity-50">
+                        <Save size={20} /> {plazas[selectedPlaza]?.estado === 'ocupada' ? 'ACTUALIZAR' : 'REGISTRAR ENTRADA'}
+                    </button>
+                  </div>
                 </div>
               )}
+
             </div>
           </div>
         </div>
