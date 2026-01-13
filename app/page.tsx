@@ -40,7 +40,7 @@ export default function ParkingApp() {
   // Estados del Modal
   const [selectedPlaza, setSelectedPlaza] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false); // NUEVO: Estado para editar
+  const [isEditing, setIsEditing] = useState(false); 
   const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
 
   // 1. CARGAR DATOS
@@ -94,8 +94,7 @@ export default function ParkingApp() {
     // Actualizar estado local
     setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: nuevaData }));
     
-    // Si estábamos editando, cerramos modo edición pero mantenemos modal abierto o cerramos, a tu gusto.
-    // Aquí cerramos el modal al guardar.
+    // Cerrar modal tras guardar
     setSelectedPlaza(null);
     setIsEditing(false);
     setFormData({ nombre: '', matricula: '', telefono: '' });
@@ -157,8 +156,9 @@ export default function ParkingApp() {
         dimensionsClass = 'h-14 w-14 mb-1 flex-col justify-center items-center';
     } else if (isPlaza27) {
         // --- CAMBIO CLAVE PARA PLAZA 27 ---
-        // Forzamos verticalidad absoluta: Alto grande, ancho pequeño.
-        dimensionsClass = 'h-32 w-12 mt-4 mx-auto flex-col items-center justify-between'; 
+        // 'ml-auto': Empuja la plaza a la derecha del contenedor.
+        // 'mt-2': Un pequeño margen arriba para separarla de la 26.
+        dimensionsClass = 'h-32 w-12 mt-2 ml-auto flex-col items-center justify-between'; 
     } else if (vertical) {
         // Normal Vertical (Listas A, B, C, D, E)
         dimensionsClass = 'h-10 w-36 mb-1 flex-row items-center justify-between'; 
@@ -260,9 +260,9 @@ export default function ParkingApp() {
               
               <div className="flex flex-col pr-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">B</div>
-                 {/* ZONA B: Renderizamos todas menos la 27, y luego la 27 manualmente al final */}
+                 {/* ZONA B: Renderizamos todas menos la 27 */}
                  {ZONES.B.filter((id: string) => !id.includes('27')).map((id: string) => <Plaza key={id} id={id} />)}
-                 {/* La 27 se renderiza aquí al final de la columna B */}
+                 {/* La 27 se renderiza aquí al final */}
                  <Plaza id="B-27" />
               </div>
 
