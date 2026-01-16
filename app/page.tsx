@@ -1,8 +1,10 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown, MapPin, ArrowRight } from 'lucide-react';
+import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown, MapPin, ArrowRight, Euro, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // --- TIPOS ---
+interface PagosAnuales { [mes: string]: string; }
+
 interface PlazaData {
   id_plaza: string;
   estado: string;
@@ -10,13 +12,14 @@ interface PlazaData {
   matricula?: string;
   telefono?: string;
   fecha_entrada?: string;
+  pagos?: Record<string, PagosAnuales>;
   _id?: string;
 }
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE DEFINITIVO: ZONAS) ---
-const ZONAS = {
+// --- CONFIGURACIÓN DE NUMERACIÓN (NOMBRE: ZONES) ---
+const ZONES = {
   // A: 14 arriba -> 01 abajo
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
   // B: 15 arriba -> 27 abajo
@@ -33,11 +36,18 @@ const ZONAS = {
   M: Array.from({ length: 6 }, (_, i) => `M-${String(i + 1).padStart(2, '0')}`),
 };
 
+const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
 export default function ParkingApp() {
   const [plazas, setPlazas] = useState<PlazasState>({});
   const [loading, setLoading] = useState(true);
   const [selectedPlaza, setSelectedPlaza] = useState<string | null>(null);
+  
+  // Estados UI
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'pagos'>('info');
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  
   const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
 
   // 1. CARGAR DATOS
@@ -57,44 +67,65 @@ export default function ParkingApp() {
       .catch((err) => console.error("Error cargando:", err));
   }, []);
 
-  // 2. GUARDAR DATOS
-  const handleGuardar = async () => {
+  // 2. GUARDAR DATOS (Lógica unificada)
+  const saveData = async (newDataPart: Partial<PlazaData>) => {
     if (!selectedPlaza) return;
     
-    const nuevaData: PlazaData = {
-      id_plaza: selectedPlaza,
-      estado: 'ocupada',
-      ...formData,
-      fecha_entrada: new Date().toISOString()
+    const currentData = plazas[selectedPlaza] || { id_plaza: selectedPlaza, estado: 'libre' };
+    
+    let nuevoEstado = currentData.estado;
+    if (newDataPart.matricula !== undefined) {
+        nuevoEstado = newDataPart.matricula ? 'ocupada' : 'libre';
+    }
+
+    const finalData = { 
+        ...currentData, 
+        ...newDataPart, 
+        estado: nuevoEstado,
+        fecha_entrada: (nuevoEstado === 'ocupada' && !currentData.fecha_entrada) ? new Date().toISOString() : currentData.fecha_entrada
     };
 
-    setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: nuevaData }));
-    setSelectedPlaza(null);
-    setFormData({ nombre: '', matricula: '', telefono: '' });
-
+    setPlazas((prev) => ({ ...prev, [selectedPlaza]: finalData as PlazaData }));
+    
     await fetch('/api/plazas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nuevaData)
+      body: JSON.stringify(finalData)
     });
+  };
+
+  const handleGuardarInfo = () => {
+      saveData(formData);
+  };
+
+  const updatePayment = (month: string, value: string) => {
+    if (!selectedPlaza) return;
+    const currentPagos = plazas[selectedPlaza]?.pagos || {};
+    const pagosYear = currentPagos[selectedYear] || {};
+    
+    const newPagos = {
+      ...currentPagos,
+      [selectedYear]: { ...pagosYear, [month]: value }
+    };
+    saveData({ pagos: newPagos });
   };
 
   // 3. LIBERAR PLAZA
   const confirmarLiberacion = async () => {
     if (!selectedPlaza) return;
-
-    const datosVacios: PlazaData = {
-      id_plaza: selectedPlaza,
+    const datosVacios: Partial<PlazaData> = {
       estado: 'libre',
-      nombre: '', matricula: '', telefono: ''
+      nombre: '', 
+      matricula: '', 
+      telefono: '',
+      fecha_entrada: undefined
     };
-
-    setPlazas((prev: PlazasState) => ({ ...prev, [selectedPlaza]: datosVacios }));
+    setPlazas((prev) => ({ ...prev, [selectedPlaza]: { ...prev[selectedPlaza], ...datosVacios } as PlazaData }));
     setSelectedPlaza(null);
     setFormData({ nombre: '', matricula: '', telefono: '' });
     setShowDeleteConfirm(false);
 
-    await fetch('/api/plazas', { method: 'POST', body: JSON.stringify(datosVacios) });
+    await fetch('/api/plazas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id_plaza: selectedPlaza, ...datosVacios }) });
   };
 
   // --- COMPONENTE: PASILLO ---
@@ -115,11 +146,8 @@ export default function ParkingApp() {
     const data = plazas[id];
     const ocupada = data?.estado === 'ocupada';
     
-    // Detectamos la plaza 27 y Motos
     const isPlaza27 = id.includes('27'); 
     const isMoto = id.startsWith('M-'); 
-
-    // LIMPIEZA VISUAL: Quitamos "A-", "B-", "M-" para mostrar solo el número.
     const numeroVisible = id.split('-')[1];
 
     let dimensionsClass = '';
@@ -139,6 +167,7 @@ export default function ParkingApp() {
         onClick={() => {
           setSelectedPlaza(id);
           setShowDeleteConfirm(false); 
+          setActiveTab('info');
           if (ocupada && data) setFormData({ nombre: data.nombre || '', matricula: data.matricula || '', telefono: data.telefono || '' });
           else setFormData({ nombre: '', matricula: '', telefono: '' });
         }}
@@ -212,7 +241,8 @@ export default function ParkingApp() {
             {/* ZONA A */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
-              {ZONAS.A.map((id: string) => <Plaza key={id} id={id} />)}
+              {/* USO CORRECTO: ZONES.A */}
+              {ZONES.A.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
             
@@ -222,14 +252,15 @@ export default function ParkingApp() {
               
               <div className="flex flex-col pr-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">B</div>
-                 {/* FILTRO PARA PLAZA 27 */}
-                 {ZONAS.B.filter((id: string) => !id.includes('27')).map((id: string) => <Plaza key={id} id={id} />)}
+                 {/* FILTRO PLAZA 27 */}
+                 {ZONES.B.filter((id: string) => !id.includes('27')).map((id: string) => <Plaza key={id} id={id} />)}
                  <Plaza id="B-27" />
               </div>
 
               <div className="flex flex-col pl-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">C</div>
-                 {ZONAS.C.map((id: string) => <Plaza key={id} id={id} />)}
+                 {/* USO CORRECTO: ZONES.C */}
+                 {ZONES.C.map((id: string) => <Plaza key={id} id={id} />)}
               </div>
             </div>
             <Pasillo direction="up" />
@@ -237,13 +268,15 @@ export default function ParkingApp() {
             {/* ZONA D */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">D</div>
-              {ZONAS.D.map((id: string) => <Plaza key={id} id={id} />)}
+              {/* USO CORRECTO: ZONES.D */}
+              {ZONES.D.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
             <Pasillo direction="down" />
 
              <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">E</div>
-              {ZONAS.E.map((id: string) => <Plaza key={id} id={id} />)}
+              {/* USO CORRECTO: ZONES.E */}
+              {ZONES.E.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
           </div>
 
@@ -253,16 +286,17 @@ export default function ParkingApp() {
             {/* ZONA MOTOS */}
             <div className="flex flex-col mr-20 relative z-10 gap-2">
                <div className="text-center font-black text-slate-600 text-xs tracking-widest">MOTOS</div>
-               {/* Grid de 2 columnas */}
                <div className="grid grid-cols-2 gap-2 bg-slate-800/50 p-2 rounded border-2 border-dashed border-yellow-500/20">
-                  {ZONAS.M.map((id: string) => <Plaza key={id} id={id} />)}
+                  {/* USO CORRECTO: ZONES.M */}
+                  {ZONES.M.map((id: string) => <Plaza key={id} id={id} />)}
                </div>
             </div>
 
             <div className="flex flex-col w-full relative z-10">
                <div className="text-left font-black text-slate-600 text-xl mb-2 ml-2 tracking-widest">F</div>
                <div className="flex gap-1">
-                  {ZONAS.F.map((id: string) => <Plaza key={id} id={id} vertical={false} />)}
+                  {/* USO CORRECTO: ZONES.F */}
+                  {ZONES.F.map((id: string) => <Plaza key={id} id={id} vertical={false} />)}
                </div>
                
                <div className="flex justify-around mt-4 opacity-20 w-full pr-32">
@@ -280,7 +314,7 @@ export default function ParkingApp() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden">
             <div className="bg-slate-800 p-5 border-b border-slate-700 flex justify-between items-center">
-              <h3 className="text-2xl font-black text-white tracking-tight flex items-center gap-2"><span className="text-emerald-500">PLAZA</span> {selectedPlaza}</h3>
+              <h3 className="text-2xl font-black text-white tracking-tight flex items-center gap-2"><span className="text-emerald-500">PLAZA</span> {selectedPlaza.split('-')[1] || selectedPlaza}</h3>
               <button onClick={() => setSelectedPlaza(null)} className="hover:bg-slate-700 p-2 rounded-full text-slate-400 transition"><X size={24}/></button>
             </div>
             
@@ -322,7 +356,7 @@ export default function ParkingApp() {
                      ) : (
                         <>
                            <button onClick={() => setShowDeleteConfirm(true)} className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-500 transition flex justify-center gap-2 items-center"><Trash2 size={18} /> BORRAR</button>
-                           <button onClick={handleGuardar} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-500 transition flex justify-center gap-2 items-center"><Save size={18} /> GUARDAR</button>
+                           <button onClick={handleGuardarInfo} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-500 transition flex justify-center gap-2 items-center"><Save size={18} /> GUARDAR</button>
                         </>
                      )}
                    </div>
@@ -350,7 +384,30 @@ export default function ParkingApp() {
                       <input className="w-full pl-10 p-4 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono text-xl" placeholder="0000 XXX" value={formData.matricula} onChange={e => setFormData({...formData, matricula: e.target.value.toUpperCase()})} />
                     </div>
                   </div>
-                  <button onClick={handleGuardar} disabled={!formData.matricula} className="w-full bg-emerald-500 text-slate-900 py-4 rounded-lg font-black tracking-wide hover:bg-emerald-400 transition flex justify-center gap-2 items-center disabled:opacity-50 mt-6"><Save size={20} /> ENTRADA</button>
+                  <button onClick={handleGuardarInfo} disabled={!formData.matricula} className="w-full bg-emerald-500 text-slate-900 py-4 rounded-lg font-black tracking-wide hover:bg-emerald-400 transition flex justify-center gap-2 items-center disabled:opacity-50 mt-6"><Save size={20} /> ENTRADA</button>
+                </div>
+              )}
+              
+              {/* --- PESTAÑA PAGOS --- */}
+              {activeTab === 'pagos' && (
+                <div className="space-y-6">
+                   <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800">
+                      <button onClick={() => setSelectedYear(String(Number(selectedYear)-1))} className="p-2 hover:bg-slate-800 rounded-md text-slate-400"><ChevronLeft/></button>
+                      <div className="flex items-center gap-2 text-xl font-bold text-white"><Calendar size={20} className="text-emerald-500"/><span className="font-mono">{selectedYear}</span></div>
+                      <button onClick={() => setSelectedYear(String(Number(selectedYear)+1))} className="p-2 hover:bg-slate-800 rounded-md text-slate-400"><ChevronRight/></button>
+                   </div>
+                   <div className="grid grid-cols-2 gap-3">
+                      {MONTHS.map(mes => {
+                        const valor = plazas[selectedPlaza]?.pagos?.[selectedYear]?.[mes] || "";
+                        const hayPago = valor.length > 0;
+                        return (
+                          <div key={mes} className={`p-3 rounded-lg border ${hayPago ? 'bg-emerald-900/20 border-emerald-500/50' : 'bg-slate-800 border-slate-700'}`}>
+                             <div className="flex justify-between items-center mb-1"><span className={`text-[10px] font-black uppercase ${hayPago ? 'text-emerald-400' : 'text-slate-500'}`}>{mes}</span>{hayPago && <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>}</div>
+                             <input className={`w-full bg-transparent outline-none font-mono text-sm border-b border-transparent focus:border-slate-500 pb-1 ${hayPago ? 'text-white font-bold' : 'text-slate-400'}`} placeholder="Sin pago..." value={valor} onChange={(e) => updatePayment(mes, e.target.value)} />
+                          </div>
+                        )
+                      })}
+                   </div>
                 </div>
               )}
             </div>
