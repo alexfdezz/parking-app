@@ -12,13 +12,12 @@ interface PlazaData {
   matricula?: string;
   telefono?: string;
   fecha_entrada?: string;
-  pagos?: Record<string, PagosAnuales>; // AÑADIDO: Pagos
+  pagos?: Record<string, PagosAnuales>;
   _id?: string;
 }
 
 type PlazasState = Record<string, PlazaData>;
 
-// --- CONFIGURACIÓN DE NUMERACIÓN (LA ORIGINAL QUE ESTABA BIEN) ---
 const ZONAS = {
   A: Array.from({ length: 14 }, (_, i) => `A-${String(14 - i).padStart(2, '0')}`),
   B: Array.from({ length: 13 }, (_, i) => `B-${String(15 + i).padStart(2, '0')}`),
@@ -35,15 +34,11 @@ export default function ParkingApp() {
   const [plazas, setPlazas] = useState<PlazasState>({});
   const [loading, setLoading] = useState(true);
   const [selectedPlaza, setSelectedPlaza] = useState<string | null>(null);
-  
-  // ESTADOS NUEVOS
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'pagos'>('info'); // Pestañas
+  const [activeTab, setActiveTab] = useState<'info' | 'pagos'>('info'); 
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
-  
   const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
 
-  // 1. CARGAR DATOS
   useEffect(() => {
     fetch('/api/plazas', { cache: 'no-store' })
       .then(res => res.json())
@@ -60,27 +55,20 @@ export default function ParkingApp() {
       .catch((err) => console.error("Error cargando:", err));
   }, []);
 
-  // 2. GUARDAR DATOS (LÓGICA UNIFICADA)
   const saveData = async (newDataPart: Partial<PlazaData>) => {
     if (!selectedPlaza) return;
-    
     const currentData = plazas[selectedPlaza] || { id_plaza: selectedPlaza, estado: 'libre' };
-    
     let nuevoEstado = currentData.estado;
-    // Si mandamos matrícula, asumimos que se ocupa. Si no, mantenemos estado.
     if (newDataPart.matricula !== undefined) {
         nuevoEstado = newDataPart.matricula ? 'ocupada' : 'libre';
     }
-
     const finalData = { 
         ...currentData, 
         ...newDataPart, 
         estado: nuevoEstado,
         fecha_entrada: (nuevoEstado === 'ocupada' && !currentData.fecha_entrada) ? new Date().toISOString() : currentData.fecha_entrada
     };
-
     setPlazas((prev) => ({ ...prev, [selectedPlaza]: finalData as PlazaData }));
-    
     await fetch('/api/plazas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -96,7 +84,6 @@ export default function ParkingApp() {
     if (!selectedPlaza) return;
     const currentPagos = plazas[selectedPlaza]?.pagos || {};
     const pagosYear = currentPagos[selectedYear] || {};
-    
     const newPagos = {
       ...currentPagos,
       [selectedYear]: { ...pagosYear, [month]: value }
@@ -104,11 +91,8 @@ export default function ParkingApp() {
     saveData({ pagos: newPagos });
   };
 
-  // 3. LIBERAR PLAZA
   const confirmarLiberacion = async () => {
     if (!selectedPlaza) return;
-
-    // Borramos datos cliente PERO NO PAGOS
     const datosVacios: Partial<PlazaData> = {
       estado: 'libre',
       nombre: '', 
@@ -116,32 +100,25 @@ export default function ParkingApp() {
       telefono: '',
       fecha_entrada: undefined
     };
-
     setPlazas((prev) => ({ ...prev, [selectedPlaza]: { ...prev[selectedPlaza], ...datosVacios } as PlazaData }));
     setSelectedPlaza(null);
     setFormData({ nombre: '', matricula: '', telefono: '' });
     setShowDeleteConfirm(false);
-
     await fetch('/api/plazas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id_plaza: selectedPlaza, ...datosVacios }) });
   };
 
-  // --- COMPONENTE: PLAZA ---
+  // --- COMPONENTE: PLAZA (CON LÓGICA DE ÚLTIMO PAGO) ---
   const Plaza = ({ id, vertical = true }: { id: string, vertical?: boolean }) => {
     const data = plazas[id];
     const ocupada = data?.estado === 'ocupada';
-    
-    const isPlaza27 = id.includes('27'); // Detectamos la 27
+    const isPlaza27 = id.includes('27');
     const isMoto = id.startsWith('M-'); 
-    
-    // Limpieza visual: quitamos letras (A-14 -> 14)
     const numeroVisible = isMoto ? id.replace('M-', '') : id.split('-')[1];
 
     let dimensionsClass = '';
-    
     if (isMoto) {
         dimensionsClass = 'h-14 w-14 mb-1 flex-col justify-center items-center';
     } else if (isPlaza27) {
-        // PLAZA 27: FORZADA VERTICAL (Alta y estrecha) y pegada a la derecha
         dimensionsClass = 'h-36 w-10 mt-1 flex-col items-center justify-between self-end'; 
     } else if (vertical) {
         dimensionsClass = 'h-10 w-36 mb-1 flex-row items-center justify-between'; 
@@ -154,7 +131,25 @@ export default function ParkingApp() {
         onClick={() => {
           setSelectedPlaza(id);
           setShowDeleteConfirm(false); 
-          setActiveTab('info');
+          
+          // REQUERIMIENTO: Abrir directamente en la pestaña de Pagos
+          setActiveTab('pagos');
+
+          // REQUERIMIENTO: Detectar el año del último pago registrado
+          const allPagos = data?.pagos || {};
+          const yearsWithData = Object.keys(allPagos).filter(year => 
+            Object.values(allPagos[year]).some(val => val && val.trim() !== "")
+          );
+
+          if (yearsWithData.length > 0) {
+            // Buscamos el año más alto numéricamente
+            const lastYear = Math.max(...yearsWithData.map(Number)).toString();
+            setSelectedYear(lastYear);
+          } else {
+            // Si no hay pagos, por defecto el año actual
+            setSelectedYear(new Date().getFullYear().toString());
+          }
+
           if (ocupada && data) setFormData({ nombre: data.nombre || '', matricula: data.matricula || '', telefono: data.telefono || '' });
           else setFormData({ nombre: '', matricula: '', telefono: '' });
         }}
@@ -169,7 +164,6 @@ export default function ParkingApp() {
         <span className={`font-black text-center whitespace-nowrap
           ${isMoto ? 'text-[12px]' : 'text-[14px]'}
           ${isPlaza27 ? 'order-1' : ''} 
-          /* Si es la 27, NO ROTAMOS */
           ${!isPlaza27 && !isMoto && !vertical ? '-rotate-90' : ''} 
           ${ocupada ? 'text-slate-500 opacity-50' : 'text-emerald-400 opacity-90'}
         `}>
@@ -226,91 +220,67 @@ export default function ParkingApp() {
           <div className="absolute top-10 left-1/2 -translate-x-1/2 text-slate-800 text-6xl font-black tracking-[1em] opacity-30 select-none pointer-events-none">P1</div>
 
           <div className="flex justify-center items-start relative z-10 gap-0"> 
-            {/* ZONA A */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">A</div>
               {ZONAS.A.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
-            {/* Pasillo */}
             <div className="w-24 border-x border-dashed border-slate-700/30 mx-2"></div>
             
-            {/* ISLA CENTRAL (B y C) */}
             <div className="flex gap-0 relative bg-slate-800/30 p-2 rounded border border-slate-700/50">
               <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-4 bg-slate-800 border-l border-r border-slate-600 rounded"></div>
-              
               <div className="flex flex-col pr-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">B</div>
-                 {/* FILTRO 27: La renderizamos aparte abajo para cambiarla */}
                  {ZONAS.B.filter((id: string) => !id.includes('27')).map((id: string) => <Plaza key={id} id={id} />)}
                  <Plaza id="B-27" />
               </div>
-
               <div className="flex flex-col pl-4">
                  <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">C</div>
                  {ZONAS.C.map((id: string) => <Plaza key={id} id={id} />)}
               </div>
             </div>
-            {/* Pasillo */}
             <div className="w-24 border-x border-dashed border-slate-700/30 mx-2"></div>
-
-            {/* ZONA D */}
             <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">D</div>
               {ZONAS.D.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
-            {/* Pasillo */}
             <div className="w-24 border-x border-dashed border-slate-700/30 mx-2"></div>
-
              <div className="flex flex-col">
               <div className="text-center font-black text-slate-600 text-xl mb-2 tracking-widest border-b-2 border-slate-700 pb-1">E</div>
               {ZONAS.E.map((id: string) => <Plaza key={id} id={id} />)}
             </div>
           </div>
 
-          {/* CALLE INFERIOR */}
           <div className="mt-8 pt-8 border-t-4 border-dashed border-yellow-500/10 flex items-end pl-2 relative">
-            
-            {/* ZONA MOTOS */}
             <div className="flex flex-col mr-20 relative z-10 gap-2">
                <div className="text-center font-black text-slate-600 text-xs tracking-widest">MOTOS</div>
-               {/* Grid 2 columnas para motos */}
                <div className="grid grid-cols-2 gap-2 bg-slate-800/50 p-2 rounded border-2 border-dashed border-yellow-500/20">
                   {ZONAS.M.map((id: string) => <Plaza key={id} id={id} />)}
                </div>
             </div>
-
             <div className="flex flex-col w-full relative z-10">
                <div className="text-left font-black text-slate-600 text-xl mb-2 ml-2 tracking-widest">F</div>
                <div className="flex gap-1">
                   {ZONAS.F.map((id: string) => <Plaza key={id} id={id} vertical={false} />)}
-               </div>
-               
-               <div className="flex justify-around mt-4 opacity-20 w-full pr-32">
-                   <ArrowRight size={40} strokeWidth={3} className="text-slate-500"/>
-                   <ArrowRight size={40} strokeWidth={3} className="text-slate-500"/>
-                   <ArrowRight size={40} strokeWidth={3} className="text-slate-500"/>
                </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* --- MODAL (CON CLICK FUERA PARA CERRAR) --- */}
       {selectedPlaza && (
         <div 
             className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => setSelectedPlaza(null)} // CERRAR AL TOCAR LO NEGRO
+            onClick={() => setSelectedPlaza(null)}
         >
           <div 
             className="bg-slate-900 border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()} // Evitar cerrar al tocar dentro
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-slate-950 p-4 border-b border-slate-800 flex justify-between items-center">
                <div className="flex items-center gap-4">
                  <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2">
                     <span className="text-emerald-500">PLAZA</span> {selectedPlaza.split('-')[1] || selectedPlaza}
                  </h2>
-                 {/* PESTAÑAS */}
                  <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
                     <button onClick={() => setActiveTab('info')} className={`px-3 py-1 md:px-4 md:py-1.5 rounded-md text-xs md:text-sm font-bold transition flex items-center gap-2 ${activeTab === 'info' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}><User size={14}/> Info</button>
                     <button onClick={() => setActiveTab('pagos')} className={`px-3 py-1 md:px-4 md:py-1.5 rounded-md text-xs md:text-sm font-bold transition flex items-center gap-2 ${activeTab === 'pagos' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}><Euro size={14}/> Pagos</button>
@@ -320,7 +290,6 @@ export default function ParkingApp() {
             </div>
             
             <div className="p-6 overflow-y-auto">
-              {/* --- PESTAÑA INFO --- */}
               {activeTab === 'info' && (
                 <div className="space-y-4">
                    <div className="grid grid-cols-2 gap-4">
@@ -333,19 +302,14 @@ export default function ParkingApp() {
                         <input className="w-full bg-transparent text-white font-medium mt-1 outline-none" placeholder="Teléfono" value={formData.telefono} onChange={e => setFormData({...formData, telefono: e.target.value})} />
                      </div>
                    </div>
-
                    <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
                       <label className="text-xs text-slate-500 uppercase font-black tracking-widest">Matrícula</label>
                       <input className="w-full bg-transparent text-3xl font-mono font-bold text-white tracking-widest outline-none uppercase" placeholder="0000 XXX" value={formData.matricula} onChange={e => setFormData({...formData, matricula: e.target.value.toUpperCase()})} />
                    </div>
-
                    <div className="pt-4 flex gap-3">
                      {showDeleteConfirm ? (
                         <div className="w-full bg-red-900/20 border border-red-500/50 p-4 rounded-lg flex flex-col gap-3 animate-in fade-in zoom-in-95">
-                          <div className="flex items-center gap-2 text-red-400 font-bold justify-center text-sm">
-                              <AlertTriangle size={18}/>
-                              <span>¿Estás seguro?</span>
-                          </div>
+                          <div className="flex items-center gap-2 text-red-400 font-bold justify-center text-sm"><AlertTriangle size={18}/><span>¿Estás seguro?</span></div>
                           <div className="flex gap-2">
                               <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 bg-slate-800 text-white rounded font-bold hover:bg-slate-700 text-sm">Cancelar</button>
                               <button onClick={confirmarLiberacion} className="flex-1 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 text-sm">Sí, Eliminar</button>
@@ -361,7 +325,6 @@ export default function ParkingApp() {
                 </div>
               )}
 
-              {/* --- PESTAÑA PAGOS --- */}
               {activeTab === 'pagos' && (
                 <div className="space-y-6">
                    <div className="flex justify-between items-center bg-slate-950 p-2 rounded-lg border border-slate-800">
