@@ -106,6 +106,26 @@ export default function ParkingApp() {
     setShowDeleteConfirm(false);
     await fetch('/api/plazas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id_plaza: selectedPlaza, ...datosVacios }) });
   };
+  
+  // --- FUNCIÓN DE BACKUP COMPLETO (NUEVA) ---
+  const handleBackupState = () => {
+    const fullState = {
+        timestamp: new Date().toISOString(),
+        clientData: plazas, // Solo los datos de clientes
+    };
+    const jsonString = JSON.stringify(fullState, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19); // Formato YYYY-MM-DDTHH-MM-SS
+    a.download = `backup_parking_general_${dateStr}.json`;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert("¡Backup completo de la base de datos generado!");
+  };
 
   // --- COMPONENTE: PLAZA (CON LÓGICA DE ÚLTIMO PAGO) ---
   const Plaza = ({ id, vertical = true }: { id: string, vertical?: boolean }) => {
@@ -208,9 +228,20 @@ export default function ParkingApp() {
           </h1>
           <p className="text-xs text-slate-400 mt-1 ml-1">Control de acceso</p>
         </div>
-        <div className="flex gap-2 text-xs font-mono bg-slate-950 border border-slate-700 px-3 py-1 rounded-full text-green-400 items-center shadow-inner">
-             <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-500' : 'bg-green-500 animate-pulse'}`}></div>
-             {loading ? 'SYNC...' : 'ONLINE'}
+        <div className="flex gap-4 items-center">
+             {/* BOTÓN DE BACKUP AÑADIDO AQUÍ */}
+             <button 
+                 onClick={handleBackupState} 
+                 className="hidden md:flex bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-full text-xs font-bold items-center gap-2 transition-all shadow-md active:scale-95"
+             >
+                 <Save size={14}/> BACKUP
+             </button>
+             {/* FIN BOTÓN DE BACKUP */}
+
+             <div className="flex gap-2 text-xs font-mono bg-slate-950 border border-slate-700 px-3 py-1 rounded-full text-green-400 items-center shadow-inner">
+                 <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-500' : 'bg-green-500 animate-pulse'}`}></div>
+                 {loading ? 'SYNC...' : 'ONLINE'}
+             </div>
         </div>
       </header>
 
