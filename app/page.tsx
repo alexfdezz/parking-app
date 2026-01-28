@@ -224,16 +224,16 @@ export default function ParkingApp() {
       <header className="bg-slate-800 border-b border-slate-700 p-4 rounded-xl mb-6 flex justify-between items-center shadow-lg sticky top-0 z-50">
         <div>
           <h1 className="text-xl font-bold text-white flex gap-2 items-center tracking-tight">
-             {/* CAMBIO: Reemplazado el icono Car por el componente Image */}
+             {/* CAMBIO: Logo */}
              <Image 
                  src="/espai-parking-logo.png" 
-                 alt="ESPACIO PARKING LOGO" 
+                 alt="ESPAI PARKING LOGO" 
                  width={48} 
                  height={48} 
                  className="w-10 h-10 object-contain"
              />
-             {/* FIN CAMBIO DE LOGO */}
-             <span className="text-2xl font-black">ESPACIO</span> <span className="text-emerald-500 text-2xl font-black">PARKING</span>
+             {/* CAMBIO: Texto a ESPAI PARKING */}
+             <span className="text-2xl font-black">ESPAI</span> <span className="text-emerald-500 text-2xl font-black">PARKING</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1 ml-1">Control de acceso</p>
         </div>
