@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { Car, User, Save, Trash2, X, Phone, AlertTriangle, ArrowUp, ArrowDown, MapPin, ArrowRight, Calendar, ChevronLeft, ChevronRight, Euro } from 'lucide-react';
+import Image from 'next/image'; // Importar el componente Image de Next.js
 
 // --- TIPOS ---
 interface PagosAnuales { [mes: string]: string; }
@@ -107,7 +108,7 @@ export default function ParkingApp() {
     await fetch('/api/plazas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id_plaza: selectedPlaza, ...datosVacios }) });
   };
   
-  // --- FUNCIÓN DE BACKUP COMPLETO (NUEVA) ---
+  // --- FUNCIÓN DE BACKUP COMPLETO ---
   const handleBackupState = () => {
     const fullState = {
         timestamp: new Date().toISOString(),
@@ -223,8 +224,16 @@ export default function ParkingApp() {
       <header className="bg-slate-800 border-b border-slate-700 p-4 rounded-xl mb-6 flex justify-between items-center shadow-lg sticky top-0 z-50">
         <div>
           <h1 className="text-xl font-bold text-white flex gap-2 items-center tracking-tight">
-             <div className="bg-emerald-500 p-1 rounded text-slate-900"><Car size={20} strokeWidth={2.5} /></div>
-             PARKING <span className="text-emerald-500">GENERAL</span>
+             {/* CAMBIO: Reemplazado el icono Car por el componente Image */}
+             <Image 
+                 src="/espai-parking-logo.png" 
+                 alt="ESPACIO PARKING LOGO" 
+                 width={48} 
+                 height={48} 
+                 className="w-10 h-10 object-contain"
+             />
+             {/* FIN CAMBIO DE LOGO */}
+             <span className="text-2xl font-black">ESPACIO</span> <span className="text-emerald-500 text-2xl font-black">PARKING</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1 ml-1">Control de acceso</p>
         </div>
@@ -338,19 +347,23 @@ export default function ParkingApp() {
                       <input className="w-full bg-transparent text-3xl font-mono font-bold text-white tracking-widest outline-none uppercase" placeholder="0000 XXX" value={formData.matricula} onChange={e => setFormData({...formData, matricula: e.target.value.toUpperCase()})} />
                    </div>
                    <div className="pt-4 flex gap-3">
-                     {showDeleteConfirm ? (
-                        <div className="w-full bg-red-900/20 border border-red-500/50 p-4 rounded-lg flex flex-col gap-3 animate-in fade-in zoom-in-95">
-                          <div className="flex items-center gap-2 text-red-400 font-bold justify-center text-sm"><AlertTriangle size={18}/><span>¿Estás seguro?</span></div>
-                          <div className="flex gap-2">
-                              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 bg-slate-800 text-white rounded font-bold hover:bg-slate-700 text-sm">Cancelar</button>
-                              <button onClick={confirmarLiberacion} className="flex-1 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 text-sm">Sí, Eliminar</button>
+                     {plazas[selectedPlaza]?.estado === 'ocupada' ? (
+                        showDeleteConfirm ? (
+                          <div className="w-full bg-red-900/20 border border-red-500/50 p-4 rounded-lg flex flex-col gap-3 animate-in fade-in zoom-in-95">
+                            <div className="flex items-center gap-2 text-red-400 font-bold justify-center text-sm"><AlertTriangle size={18}/><span>¿Estás seguro?</span></div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2 bg-slate-800 text-white rounded font-bold hover:bg-slate-700 text-sm">Cancelar</button>
+                                <button onClick={confirmarLiberacion} className="flex-1 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 text-sm">Sí, Eliminar</button>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                           <>
+                              <button onClick={() => setShowDeleteConfirm(true)} className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-500 transition flex justify-center gap-2 items-center"><Trash2 size={18} /> BORRAR</button>
+                              <button onClick={handleGuardarInfo} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-500 transition flex justify-center gap-2 items-center"><Save size={18} /> GUARDAR</button>
+                           </>
+                        )
                      ) : (
-                        <>
-                           <button onClick={() => setShowDeleteConfirm(true)} className="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-500 transition flex justify-center gap-2 items-center"><Trash2 size={18} /> BORRAR</button>
-                           <button onClick={handleGuardarInfo} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-500 transition flex justify-center gap-2 items-center"><Save size={18} /> GUARDAR</button>
-                        </>
+                        <button onClick={handleGuardarInfo} className="w-full bg-emerald-500 text-slate-900 py-4 rounded-lg font-black tracking-wide hover:bg-emerald-400 transition flex justify-center gap-2 items-center shadow-lg shadow-emerald-900/20"><Save size={20} /> REGISTRAR ENTRADA</button>
                      )}
                    </div>
                 </div>
