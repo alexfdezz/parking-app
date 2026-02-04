@@ -42,22 +42,16 @@ export default function ParkingApp() {
   const [formData, setFormData] = useState({ nombre: '', matricula: '', telefono: '' });
   const [isBankMode, setIsBankMode] = useState(false); 
   
-  // Las referencias a timeout no causan errores aquí, se pueden mantener
-  // const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  // const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // --- FUNCIONES DE LÓGICA DE ESTADO (Tipadas y en orden) ---
 
-
-  // --- FUNCIONES DE LÓGICA DE ESTADO (Para resolver los errores de TS/JS) ---
-
-  // Función Principal de Lógica de Pagos y Mora
+  // Función Principal de Lógica de Pagos y Mora (MODIFICADA)
   const getPaymentStatus = (id: string) => {
     const data = plazas[id];
-    if (!data || data.estado !== 'ocupada') return { status: 'LIBRE', color: 'bg-emerald-500/20', facturar: false, mora: false, monthsToFacturar: [] as string[] };
+    if (!data || data.estado !== 'ocupada') return { status: 'LIBRE', color: 'bg-emerald-900/20', facturar: false, mora: false, monthsToFacturar: [] as string[] };
 
     const today = new Date();
     const currentYear = today.getFullYear().toString();
     const currentMonthIndex = today.getMonth(); // 0 (Enero) a 11 (Diciembre)
-    const currentMonthName = MONTHS[currentMonthIndex];
     const isBank = data.isBank ?? false;
     
     const pagosYear = data.pagos?.[currentYear] || {};
@@ -68,26 +62,43 @@ export default function ParkingApp() {
     let mora = false;
     let monthsToFacturar: string[] = [];
 
-    // LÓGICA DE MORA (ROJO): Si el mes actual no está pagado
-    if (!pagosYear[currentMonthName] || pagosYear[currentMonthName] === "FACTURADO") {
-        mora = true;
-        status = 'MORA';
-        color = 'bg-red-900/80';
-    } 
-    
-    // LÓGICA DE FACTURACIÓN (AMARILLO): Solo si isBank está activo
+    // --- CAMBIO: LÓGICA DE MORA CORREGIDA ---
+    // Recorremos desde Enero hasta el mes ACTUAL
+    for (let i = 0; i <= currentMonthIndex; i++) {
+        const monthName = MONTHS[i];
+        const monthPaidStatus = pagosYear[monthName];
+        
+        // La mora se activa si el mes está vacío/impagado (no tiene texto o es "FACTURADO" por error, o vacío "")
+        // y NO es el mes actual.
+        if (i < currentMonthIndex) { 
+            if (!monthPaidStatus || monthPaidStatus === "FACTURADO" || monthPaidStatus === "") {
+                mora = true;
+                break;
+            }
+        }
+        
+        // Si es el mes ACTUAL y no tiene pago registrado, se considera mora (rojo) 
+        // para dar aviso visual inmediatamente.
+        if (i === currentMonthIndex && (!monthPaidStatus || monthPaidStatus === "FACTURADO" || monthPaidStatus === "")) {
+             mora = true;
+             break;
+        }
+    }
+    // FIN LÓGICA DE MORA CORREGIDA
+
+    // --- LÓGICA DE FACTURACIÓN (AMARILLO) ---
     if (isBank) {
-      const q = Math.floor(currentMonthIndex / 3); // Trimestre actual (0, 1, 2, 3)
-      const isFacturationMonth = [2, 5, 8, 11].includes(currentMonthIndex); // Marzo, Junio, Sept, Dic
+      const q = Math.floor(currentMonthIndex / 3); 
+      const facturationMonthIndex = [2, 5, 8, 11].find(m => m === currentMonthIndex);
       
       const currentQuarterMonths = [MONTHS[q * 3], MONTHS[q * 3 + 1], MONTHS[q * 3 + 2]];
 
-      if (isFacturationMonth) {
-        // Verifica si los TRES meses del trimestre están pagados (tienen algún dato y no son "FACTURADO")
+      if (facturationMonthIndex !== undefined) {
+        // Verifica si los 3 meses del trimestre *anterior* tienen un pago REGISTRADO (no FACTURADO)
         const allPaid = currentQuarterMonths.every(m => pagosYear[m] && pagosYear[m] !== "FACTURADO");
-        const allFacturado = currentQuarterMonths.every(m => pagosYear[m] === "FACTURADO");
+        const anyFacturado = currentQuarterMonths.some(m => pagosYear[m] === "FACTURADO");
 
-        if (allPaid && !allFacturado) {
+        if (allPaid && !anyFacturado) {
           facturar = true;
           status = 'FACTURAR';
           color = 'bg-yellow-900/60';
@@ -96,7 +107,7 @@ export default function ParkingApp() {
       }
     }
     
-    // El estado de Mora tiene la máxima prioridad visual
+    // El estado de Mora (ROJO) tiene la máxima prioridad visual.
     if (mora) {
         status = 'MORA';
         color = 'bg-red-900/80';
@@ -113,7 +124,6 @@ export default function ParkingApp() {
     return { status, color, facturar, mora, monthsToFacturar };
   };
 
-  // Función Central de Guardado de Datos (NO debe moverse)
   const saveData = async (newDataPart: Partial<PlazaData>) => {
     if (!selectedPlaza) return;
     const currentData = plazas[selectedPlaza] || { id_plaza: selectedPlaza, estado: 'libre' };
@@ -126,7 +136,7 @@ export default function ParkingApp() {
         ...newDataPart, 
         estado: nuevoEstado,
         fecha_entrada: (nuevoEstado === 'ocupada' && !currentData.fecha_entrada) ? new Date().toISOString() : currentData.fecha_entrada,
-        isBank: newDataPart.isBank ?? currentData.isBank ?? false, // CAMBIO: Aseguramos la persistencia de isBank
+        isBank: newDataPart.isBank ?? currentData.isBank ?? false,
     };
     setPlazas((prev) => ({ ...prev, [selectedPlaza]: finalData as PlazaData }));
     await fetch('/api/plazas', {
@@ -136,7 +146,6 @@ export default function ParkingApp() {
     });
   };
 
-  // Resuelve 'Cannot find name 'updatePayment'.'
   const updatePayment = (month: string, value: string) => {
     if (!selectedPlaza) return;
     const currentPagos = plazas[selectedPlaza]?.pagos || {};
@@ -148,7 +157,6 @@ export default function ParkingApp() {
     saveData({ pagos: newPagos });
   };
   
-  // Resuelve 'Cannot find name 'confirmarLiberacion'.'
   const confirmarLiberacion = async () => {
     if (!selectedPlaza) return;
     const datosVacios: Partial<PlazaData> = {
@@ -158,17 +166,14 @@ export default function ParkingApp() {
       telefono: '',
       fecha_entrada: undefined
     };
-    // CAMBIO: Enviamos la petición de borrado al servidor antes de cambiar el estado en el frontend
     await fetch('/api/plazas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id_plaza: selectedPlaza, ...datosVacios }) });
     
-    // Actualizamos el estado de React y cerramos el modal
     setPlazas((prev) => ({ ...prev, [selectedPlaza]: { ...prev[selectedPlaza], ...datosVacios, pagos: {} } as PlazaData }));
     setSelectedPlaza(null);
     setFormData({ nombre: '', matricula: '', telefono: '' });
     setShowDeleteConfirm(false);
   };
   
-  // Resuelve 'Cannot find name 'handleBackupState'.'
   const handleBackupState = () => {
     const fullState = {
         timestamp: new Date().toISOString(),
@@ -188,7 +193,6 @@ export default function ParkingApp() {
     alert("¡Backup completo de la base de datos generado!");
   };
 
-  // Otras Funciones Auxiliares
   const handleGuardarInfo = () => {
       saveData(formData);
   };
@@ -202,27 +206,8 @@ export default function ParkingApp() {
   const confirmFacturacion = () => {
     if (!selectedPlaza) return;
     const currentPagos = plazas[selectedPlaza]?.pagos || {};
-    const year = selectedYear; // Usamos el año actualmente seleccionado
+    const year = selectedYear;
     
-    const today = new Date();
-    const currentMonthIndex = today.getMonth(); // 0-11
-    
-    // Lógica mejorada: Identificamos el trimestre actual basándonos en la fecha de hoy
-    let q = Math.floor(currentMonthIndex / 3); 
-    // Si estamos en un mes de facturación (Marzo, Junio, Sept, Dic), 
-    // la factura es por el trimestre que acaba.
-    if ([2, 5, 8, 11].includes(currentMonthIndex)) {
-        q = currentMonthIndex / 3 - 1;
-        if (q < 0) q = 3; // Si es marzo (2), volvemos al último trimestre (3) del año pasado
-    }
-    
-    // Si estamos en un mes fuera del trimestre actual, asumimos el trimestre en curso:
-    if (q < 0) q = 3; 
-
-    // Obtener los meses del trimestre anterior/a facturar (Enero-Marzo: 0-2, etc)
-    const monthsIndices = [q * 3, q * 3 + 1, q * 3 + 2].map(i => i % 12);
-    const monthsToUpdate = monthsIndices.map(i => MONTHS[i]);
-
     const status = getPaymentStatus(selectedPlaza);
     
     if (!status.facturar) {
@@ -230,13 +215,13 @@ export default function ParkingApp() {
          return;
     }
     
+    const monthsToUpdate = status.monthsToFacturar;
+
     // Marcamos los meses del trimestre como "FACTURADO" (pago de impuestos confirmado)
     const newPagos = { ...currentPagos };
-    newPagos[year] = { ...newPagos[year] }; // Clonar el objeto del año
+    newPagos[year] = { ...newPagos[year] }; 
 
     monthsToUpdate.forEach(month => {
-        // Solo marcamos como FACTURADO los meses que fueron pagados,
-        // esto evita sobreescribir un mes que ya tiene una fecha de pago.
         if (newPagos[year][month] && newPagos[year][month] !== "FACTURADO") {
              newPagos[year][month] = "FACTURADO"; 
         }
@@ -570,25 +555,40 @@ export default function ParkingApp() {
                         // Estilo condicional para Facturar/Mora
                         let monthClass = 'bg-slate-800 border-slate-700'; // Default
                         let facturacionAviso = false;
+                        let isMora = false;
 
-                        if (status.mora && MONTHS.indexOf(mes) === new Date().getMonth() && selectedYear === new Date().getFullYear().toString()) {
-                             monthClass = 'bg-red-900/20 border-red-500/50'; // Mes en mora
-                        } else if (plazas[selectedPlaza]?.isBank && status.facturar && status.monthsToFacturar.includes(mes)) {
+                        // 1. Comprobación de Mora: Meses anteriores + Mes Actual si está vacío
+                        const isCurrentYear = selectedYear === new Date().getFullYear().toString();
+                        const isMonthPastOrPresent = isCurrentYear && MONTHS.indexOf(mes) <= new Date().getMonth();
+                        
+                        if (isMonthPastOrPresent) {
+                            if (!valor || valor === "FACTURADO" || valor === "") {
+                                isMora = true;
+                                monthClass = 'bg-red-900/20 border-red-500/50';
+                            }
+                        }
+
+                        // 2. Comprobación de Facturación (Amarillo): Tiene prioridad sobre Pagado/Impagado
+                        if (plazas[selectedPlaza]?.isBank && status.facturar && status.monthsToFacturar.includes(mes)) {
                              monthClass = 'bg-yellow-900/20 border-yellow-500/50'; // Mes a facturar
                              facturacionAviso = true;
-                        } else if (valor.length > 0) {
-                             monthClass = 'bg-emerald-900/20 border-emerald-500/50'; // Pagado
+                             isMora = false; // El aviso de Facturación anula la mora visual
+                        } else if (valor.length > 0 && !isMora) {
+                            // 3. Pagado (verde): Solo si hay valor y no está en mora
+                             monthClass = 'bg-emerald-900/20 border-emerald-500/50';
                         }
+                        // Nota: Si isMora es true, el monthClass ya es rojo desde el paso 1
+
 
                         return (
                           <div key={mes} className={`p-3 rounded-lg border ${monthClass}`}>
                              <div className="flex justify-between items-center mb-1">
                                 <span className={`text-[10px] font-black uppercase ${monthClass.includes('emerald') ? 'text-emerald-400' : monthClass.includes('red') ? 'text-red-400' : monthClass.includes('yellow') ? 'text-yellow-400' : 'text-slate-500'}`}>{mes}</span>
-                                {(valor.length > 0 && !facturacionAviso) && <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>}
+                                {(valor.length > 0 && !facturacionAviso && !monthClass.includes('red')) && <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>}
                                 {facturacionAviso && <AlertTriangle size={14} className="text-yellow-500"/>}
                              </div>
                              <input 
-                                className={`w-full bg-transparent outline-none font-mono text-sm border-b border-transparent focus:border-slate-500 pb-1 ${valor.length > 0 ? 'text-white font-bold' : 'text-slate-400'}`} 
+                                className={`w-full bg-transparent outline-none font-mono text-sm border-b border-transparent focus:border-slate-500 pb-1 ${valor.length > 0 && !monthClass.includes('red') ? 'text-white font-bold' : 'text-slate-400'}`} 
                                 placeholder="Sin pago..." 
                                 value={valor} 
                                 onChange={(e) => updatePayment(mes, e.target.value)} 
