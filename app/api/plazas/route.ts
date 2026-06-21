@@ -21,8 +21,9 @@ export async function POST(request: NextRequest) {
     const db = client.db("gestion_parking");
     const body = await request.json();
     
-    const { id_plaza, _id, ...datos } = body;
-    
+    const { id_plaza: raw_id, _id, ...datos } = body;
+    const id_plaza = String(raw_id);
+
     await db.collection("plazas").updateOne(
       { id_plaza: id_plaza },
       { $set: { id_plaza, ...datos } },
